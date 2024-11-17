@@ -6,7 +6,7 @@ This project implements an interactive map for a ArmA Reforger, allowing users t
 - Add new marker categories dynamically from the menu.
 - Control markers with functions like "Undo Last" or "Delete All".
 
-![Interactive Map](https://reforgermap.com)
+[ReforgerMap](https://reforgermap.com)
 
 ---
 
@@ -24,7 +24,7 @@ This project implements an interactive map for a ArmA Reforger, allowing users t
 - Rotate the map to set north to any desired direction (N, E, S, W).
 - Compass displays current direction.
 
-- **TODO**:
+## **TO-DO**
 - Share private Marks and planners
 
 ---
