@@ -24,42 +24,74 @@
             
         }
 
-        #sidebar {
-            width: 200px;
-            background: #333;
-            color: #fff;
-            padding: 15px;
-            display: flex;
-            flex-direction: column;
-            gap: 10px;
-            overflow-y: auto;
-            position: absolute;
-            top: 50px; /* Espacio para controles superiores */
-            left: 0;
-            height: calc(100% - 50px); /* Evitar superposición con footer */
-            z-index: 1002; /* Menú sobre los controles de Leaflet */            
-            transition: transform 0.3s ease-in-out;
-        }
-        #sidebar.hidden {
-            transform: translateX(-200px);
-        }
-        #sidebar button, #sidebar select, #sidebar input, #sidebar ul li {
-            background: #444;
-            color: #fff;
-            border: none;
-            padding: 10px;
-            cursor: pointer;
-            border-radius: 5px;
-        }
-        #sidebar button:hover, #sidebar select:hover, #sidebar input:hover, #sidebar ul li:hover {
-            background: #555;
-        }
+		#sidebar {
+			width: 200px;
+			background: #333;
+			color: #fff;
+			padding: 15px;
+			display: flex;
+			flex-direction: column;
+			gap: 10px;
+			overflow-y: auto; /* Activa el desplazamiento */
+			scrollbar-width: thin; /* Scrollbar estrecho (Firefox) */
+			scrollbar-color: #555 #333; /* Colores del scrollbar (Firefox) */
+			position: absolute;
+			top: 50px;
+			left: 0;
+			height: calc(100% - 50px); /* Ajusta para evitar superposición con footer */
+			z-index: 1002;
+			transition: transform 0.3s ease-in-out;
+			border-right: 1px solid #444; /* Bordes opcionales para mejorar el diseño */
+		}
+
+		#sidebar.hidden {
+			transform: translateX(-200px);
+		}
+
+		#sidebar::-webkit-scrollbar {
+			width: 8px; /* Ancho del scrollbar en Chrome, Edge y Safari */
+		}
+
+		#sidebar::-webkit-scrollbar-track {
+			background: #333; /* Color de fondo del track */
+		}
+
+		#sidebar::-webkit-scrollbar-thumb {
+			background: #555; /* Color del scrollbar */
+			border-radius: 4px; /* Esquinas redondeadas */
+		}
+
+		#sidebar::-webkit-scrollbar-thumb:hover {
+			background: #777; /* Color al pasar el mouse */
+		}
+
+		#sidebar h3 {
+			font-size: 16px;
+			border-bottom: 1px solid #444;
+			padding-bottom: 5px;
+			margin-bottom: 10px;
+			color: #ff8800;
+		}
+
+		#sidebar button, #sidebar select, #sidebar input, #sidebar ul li {
+			background: #444;
+			color: #fff;
+			border: none;
+			padding: 10px;
+			cursor: pointer;
+			border-radius: 5px;
+		}
+
+		#sidebar button:hover, #sidebar select:hover, #sidebar input:hover, #sidebar ul li:hover {
+			background: #555;
+		}
+
         #sidebar .selected {
             background: #ff8800;
         }
         #toggleMenu {
             position: absolute;
-            top: 10px;
+            top: 100px;
             left: 10px;
             z-index: 1003;
             padding: 10px;
