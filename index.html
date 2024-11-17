@@ -1,7 +1,7 @@
 <!DOCTYPE html>
 <html>
 <head>
-    <title>Interactive Map with POI, Drawing Tools, and Limited Exploration</title>
+    <title>Interactive Map with POI, Drawing Tools, and Custom Icons</title>
     <meta charset="utf-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
@@ -143,7 +143,7 @@
     <script>
         const map = L.map('map', {
             crs: L.CRS.Simple,
-            maxZoom: 4,
+            maxZoom: 3,
             minZoom: 0,
             maxBounds: [[0, 0], [2048, 2048]],
             maxBoundsViscosity: 1.0
@@ -177,6 +177,13 @@
             mouseCoordinates.textContent = `Lat: ${lat.toFixed(2)}, Lng: ${lng.toFixed(2)}`;
         });
 
+        const customIcons = {
+            enemy: L.icon({ iconUrl: 'icon-enemy.png', iconSize: [32, 32] }),
+            exit: L.icon({ iconUrl: 'icon-exit.png', iconSize: [32, 32] }),
+            respawn: L.icon({ iconUrl: 'icon-respawn.png', iconSize: [32, 32] }),
+            loot: L.icon({ iconUrl: 'icon-loot.png', iconSize: [32, 32] })
+        };
+
         let markers = [];
         let currentMarkerType = null;
 
@@ -198,7 +205,7 @@
             const lat = e.latlng.lat;
             const lng = e.latlng.lng;
 
-            const marker = L.marker([lat, lng]).addTo(map).on('click', function () {
+            const marker = L.marker([lat, lng], { icon: customIcons[currentMarkerType] }).addTo(map).on('click', function () {
                 map.removeLayer(marker);
                 markers = markers.filter(m => m !== marker);
             });
@@ -225,12 +232,16 @@
             markers = [];
         }
 
+        // POI List
         const poiList = [
-            { name: "POI 1", coords: [500, 500] },
-            { name: "POI 2", coords: [1000, 1000] },
-            { name: "POI 3", coords: [1500, 1500] }
+            { name: "Saint Philippe (HQ-N)", coords: [1755.67, 666.50] },			
+            { name: "Saint-Pierre (HQ-S)", coords: [250.16, 1592.62] },						
+            { name: "Montignac", coords: [1140.54, 712] },
+            { name: "Provins", coords: [988.61, 846.50] },	
+            { name: "Levie", coords: [769.24, 1190] }
         ];
 
+        // Populate POI List
         function populatePOIList() {
             const listElement = document.getElementById('poiList');
             listElement.innerHTML = '';
@@ -240,7 +251,7 @@
                 li.style.cursor = 'pointer';
                 li.onclick = () => {
                     map.setView(poi.coords, 3);
-                    L.marker(poi.coords).addTo(map).bindPopup(poi.name).openPopup();
+                    L.marker(poi.coords, { icon: customIcons.loot }).addTo(map).bindPopup(poi.name).openPopup();
                 };
                 listElement.appendChild(li);
             });
@@ -258,12 +269,13 @@
                     li.style.cursor = 'pointer';
                     li.onclick = () => {
                         map.setView(poi.coords, 3);
-                        L.marker(poi.coords).addTo(map).bindPopup(poi.name).openPopup();
+                        L.marker(poi.coords, { icon: customIcons.loot }).addTo(map).bindPopup(poi.name).openPopup();
                     };
                     listElement.appendChild(li);
                 });
         }
 
+        // Drawing Tools
         const drawnItems = new L.FeatureGroup();
         map.addLayer(drawnItems);
 
@@ -298,6 +310,24 @@
             drawnItems.clearLayers();
         }
 
+        // Compass and Rotation
+        const compass = document.getElementById('compass');
+        compass.addEventListener('click', () => {
+            rotateMap(90);
+        });
+
+        let currentAngle = 0;
+        const directions = ['N', 'E', 'S', 'W'];
+        function rotateMap(angle) {
+            currentAngle = (currentAngle + angle) % 360;
+            const mapContainer = document.getElementById('map');
+            mapContainer.style.transform = `rotate(${currentAngle}deg)`;
+
+            const directionIndex = Math.round((360 - currentAngle) / 90) % 4;
+            document.getElementById('currentDirection').textContent = directions[directionIndex];
+        }
+
+        // Sidebar Toggle
         const sidebar = document.getElementById('sidebar');
         const toggleMenuButton = document.getElementById('toggleMenu');
         toggleMenuButton.addEventListener('click', () => {
