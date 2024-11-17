@@ -1,0 +1,242 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Interactive Map with Compass and Markers</title>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
+    <style>
+        body {
+            margin: 0;
+            display: flex;
+            height: 100vh;
+        }
+        #map {
+            flex-grow: 1;
+            transform-origin: center center;
+        }
+        #sidebar {
+            width: 200px;
+            background: #333;
+            color: #fff;
+            padding: 15px;
+            display: flex;
+            flex-direction: column;
+            gap: 10px;
+            overflow-y: auto;
+            transition: transform 0.3s ease-in-out;
+        }
+        #sidebar.hidden {
+            transform: translateX(-200px);
+        }
+        #sidebar button {
+            background: #444;
+            color: #fff;
+            border: none;
+            padding: 10px;
+            cursor: pointer;
+            border-radius: 5px;
+        }
+        #sidebar button:hover {
+            background: #555;
+        }
+        #sidebar .selected {
+            background: #ff8800;
+        }
+        #toggleMenu {
+            position: absolute;
+            top: 10px;
+            left: 10px;
+            z-index: 1000;
+            padding: 10px;
+            background: #333;
+            color: #fff;
+            border: none;
+            border-radius: 5px;
+            cursor: pointer;
+        }
+        #toggleMenu:hover {
+            background: #444;
+        }
+        #compass {
+            position: absolute;
+            top: 10px;
+            right: 10px;
+            z-index: 1000;
+            background: rgba(0, 0, 0, 0.5);
+            color: white;
+            border-radius: 5px;
+            padding: 10px;
+            font-family: Arial, sans-serif;
+            text-align: center;
+            cursor: pointer;
+        }
+        #compass:hover {
+            background: rgba(0, 0, 0, 0.7);
+        }
+        #compass span {
+            display: block;
+        }
+        #addMenuForm {
+            display: flex;
+            flex-direction: column;
+            gap: 10px;
+        }
+        #addMenuForm input {
+            padding: 5px;
+            border: none;
+            border-radius: 5px;
+        }
+        #addMenuForm button {
+            background: #444;
+            color: #fff;
+            border: none;
+            padding: 10px;
+            cursor: pointer;
+            border-radius: 5px;
+        }
+    </style>
+</head>
+<body>
+    <button id="toggleMenu">☰</button>
+    <div id="sidebar" class="hidden">
+        <h3>Markers</h3>
+        <div id="menuItems">
+            <button id="enemyButton" onclick="setMarkerType('enemy')">Enemy</button>
+            <button id="exitButton" onclick="setMarkerType('exit')">Exit Point</button>
+            <button id="respawnButton" onclick="setMarkerType('respawn')">Respawn Point</button>
+            <button id="lootButton" onclick="setMarkerType('loot')">Loot</button>
+        </div>
+        <button onclick="undoLastMarker()">Undo Last</button>
+        <button onclick="removeAllMarkers()">Remove All</button>
+        <h3>Add New Marker</h3>
+        <form id="addMenuForm" onsubmit="addMenuItem(event)">
+            <input type="text" id="newMarkerName" placeholder="Marker Name" required />
+            <input type="text" id="newMarkerType" placeholder="Marker Type (key)" required />
+            <button type="submit">Add</button>
+        </form>
+    </div>
+    <div id="map"></div>
+    <div id="compass">
+        <span>🧭</span>
+        <span id="currentDirection">N</span>
+    </div>
+    <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+    <script>
+        const map = L.map('map', {
+            crs: L.CRS.Simple,
+            maxZoom: 4,
+            minZoom: -2
+        });
+
+        const bounds = [[0, 0], [2048, 2048]];
+        L.imageOverlay('mapa.png', bounds).addTo(map);
+        map.fitBounds(bounds);
+
+        const customIcons = {
+            enemy: L.icon({ iconUrl: 'icon-enemy.png', iconSize: [32, 32] }),
+            exit: L.icon({ iconUrl: 'icon-exit.png', iconSize: [32, 32] }),
+            respawn: L.icon({ iconUrl: 'icon-respawn.png', iconSize: [32, 32] }),
+            loot: L.icon({ iconUrl: 'icon-loot.png', iconSize: [32, 32] })
+        };
+
+        let currentMarkerType = null;
+        let markers = [];
+        let currentAngle = 0;
+        const directions = ['N', 'E', 'S', 'W'];
+
+        function setMarkerType(type) {
+            currentMarkerType = type;
+
+            document.querySelectorAll('#menuItems button').forEach(button => {
+                button.classList.remove('selected');
+            });
+            const selectedButton = document.querySelector(`[id="${type}Button"]`);
+            if (selectedButton) {
+                selectedButton.classList.add('selected');
+            }
+        }
+
+        map.on('click', e => {
+            if (!currentMarkerType) return;
+
+            const lat = e.latlng.lat;
+            const lng = e.latlng.lng;
+
+            const marker = L.marker([lat, lng], { icon: customIcons[currentMarkerType] || defaultIcon() }).addTo(map);
+            markers.push(marker);
+
+            currentMarkerType = null;
+            document.querySelectorAll('#menuItems button').forEach(button => {
+                button.classList.remove('selected');
+            });
+        });
+
+        function undoLastMarker() {
+            if (markers.length > 0) {
+                const lastMarker = markers.pop();
+                map.removeLayer(lastMarker);
+            } else {
+                alert('No markers to undo.');
+            }
+        }
+
+        function removeAllMarkers() {
+            markers.forEach(marker => map.removeLayer(marker));
+            markers = [];
+        }
+
+        const sidebar = document.getElementById('sidebar');
+        const toggleMenuButton = document.getElementById('toggleMenu');
+        toggleMenuButton.addEventListener('click', () => {
+            sidebar.classList.toggle('hidden');
+            adjustMapSize();
+        });
+
+        function adjustMapSize() {
+            setTimeout(() => map.invalidateSize(), 300);
+        }
+
+        function addMenuItem(event) {
+            event.preventDefault();
+
+            const name = document.getElementById('newMarkerName').value;
+            const type = document.getElementById('newMarkerType').value;
+
+            if (!name || !type) return;
+
+            const newButton = document.createElement('button');
+            newButton.textContent = name;
+            newButton.id = `${type}Button`;
+            newButton.onclick = () => setMarkerType(type);
+
+            document.getElementById('menuItems').appendChild(newButton);
+
+            if (!customIcons[type]) {
+                customIcons[type] = defaultIcon();
+            }
+
+            document.getElementById('newMarkerName').value = '';
+            document.getElementById('newMarkerType').value = '';
+        }
+
+        function defaultIcon() {
+            return L.icon({ iconUrl: 'icon-default.png', iconSize: [32, 32] });
+        }
+
+        const compass = document.getElementById('compass');
+        compass.addEventListener('click', () => {
+            rotateMap(90);
+        });
+
+        function rotateMap(angle) {
+            currentAngle = (currentAngle + angle) % 360;
+            const mapContainer = document.getElementById('map');
+            mapContainer.style.transform = `rotate(${currentAngle}deg)`;
+
+            const directionIndex = Math.round((360 - currentAngle) / 90) % 4;
+            document.getElementById('currentDirection').textContent = directions[directionIndex];
+        }
+    </script>
+</body>
+</html>
