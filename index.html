@@ -28,7 +28,7 @@
         }
 
 		#sidebar {
-			width: 200px;
+			width: 180px;
 			background: #333;
 			color: #fff;
 			padding: 1px;
@@ -182,9 +182,9 @@
         <h3>Markers</h3>
         <div id="menuItems">
             <button id="enemyButton" onclick="setMarkerType('enemy')">Enemy</button>
-            <button id="exitButton" onclick="setMarkerType('exit')">Exit Point</button>
-            <button id="respawnButton" onclick="setMarkerType('respawn')">Respawn Point</button>
-            <button id="lootButton" onclick="setMarkerType('loot')">TO-DO</button>
+            <button id="exitButton" onclick="setMarkerType('exit')">Attack</button>
+            <button id="respawnButton" onclick="setMarkerType('respawn')">Respawn</button>
+            <button id="lootButton" onclick="setMarkerType('loot')">GO</button>
         </div>
         <button onclick="undoLastMarker()">Undo Last</button>
         <button onclick="removeAllMarkers()">Remove All</button>
@@ -218,7 +218,7 @@
             <a href="https://www.reforgemap.com/contact" target="_blank">Contact</a>
         </div>
         <div>
-            Version 4.0 - <a href="https://www.reforgemap.com/changelog" target="_blank">Changelog</a>
+            Version 5.0 - <a href="https://www.reforgemap.com/changelog" target="_blank">Changelog</a>
         </div>
     </div>
     <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
