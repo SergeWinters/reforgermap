@@ -1,7 +1,7 @@
 <!DOCTYPE html>
 <html>
 <head>
-    <title>Interactive Map with Drawing, Compass, and Markers</title>
+    <title>Interactive Map with Advanced Features</title>
     <meta charset="utf-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
@@ -70,6 +70,25 @@
             font-family: Arial, sans-serif;
             z-index: 1000;
         }
+        #compass {
+            position: absolute;
+            top: 10px;
+            right: 10px;
+            z-index: 1000;
+            background: rgba(0, 0, 0, 0.5);
+            color: white;
+            border-radius: 5px;
+            padding: 10px;
+            font-family: Arial, sans-serif;
+            text-align: center;
+            cursor: pointer;
+        }
+        #compass:hover {
+            background: rgba(0, 0, 0, 0.7);
+        }
+        #compass span {
+            display: block;
+        }
     </style>
 </head>
 <body>
@@ -97,6 +116,10 @@
     </div>
     <div id="map"></div>
     <div id="zoomInfo">Zoom Level: <span id="zoomLevel">0</span></div>
+    <div id="compass">
+        <span>🧭</span>
+        <span id="currentDirection">N</span>
+    </div>
     <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/leaflet.draw/1.0.4/leaflet.draw.js"></script>
     <script>
@@ -130,6 +153,10 @@
         let markers = [];
         const drawnItems = new L.FeatureGroup();
         map.addLayer(drawnItems);
+
+        // Compass-related variables
+        let currentAngle = 0;
+        const directions = ['N', 'E', 'S', 'W'];
 
         // Marker functions
         function setMarkerType(type) {
@@ -237,6 +264,21 @@
 
         function clearAllDrawings() {
             drawnItems.clearLayers();
+        }
+
+        // Compass rotation
+        const compass = document.getElementById('compass');
+        compass.addEventListener('click', () => {
+            rotateMap(90);
+        });
+
+        function rotateMap(angle) {
+            currentAngle = (currentAngle + angle) % 360;
+            const mapContainer = document.getElementById('map');
+            mapContainer.style.transform = `rotate(${currentAngle}deg)`;
+
+            const directionIndex = Math.round((360 - currentAngle) / 90) % 4;
+            document.getElementById('currentDirection').textContent = directions[directionIndex];
         }
 
         // Sidebar toggle
