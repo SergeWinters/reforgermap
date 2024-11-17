@@ -1,6 +1,6 @@
 # Interactive Map with Compass and Markers
 
-This project implements an interactive map for a game, allowing users to:
+This project implements an interactive map for a ArmA Reforger, allowing users to:
 - Place and manage markers on the map.
 - Use an interactive compass to adjust the north of the map to the desired direction.
 - Add new marker categories dynamically from the menu.
@@ -23,6 +23,9 @@ This project implements an interactive map for a game, allowing users to:
 - **Interactive Compass**:
 - Rotate the map to set north to any desired direction (N, E, S, W).
 - Compass displays current direction.
+
+- **TODO**:
+- Share private Marks and planners
 
 ---
 

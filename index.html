@@ -26,11 +26,12 @@
             gap: 10px;
             overflow-y: auto;
             transition: transform 0.3s ease-in-out;
+            margin-top: 50px; /* Asegura que el contenido no quede debajo del botón del menú */
         }
         #sidebar.hidden {
             transform: translateX(-200px);
         }
-        #sidebar button {
+        #sidebar button, #sidebar select {
             background: #444;
             color: #fff;
             border: none;
@@ -38,7 +39,7 @@
             cursor: pointer;
             border-radius: 5px;
         }
-        #sidebar button:hover {
+        #sidebar button:hover, #sidebar select:hover {
             background: #555;
         }
         #sidebar .selected {
@@ -70,6 +71,17 @@
             font-family: Arial, sans-serif;
             z-index: 1000;
         }
+        #coordinatesInfo {
+            position: absolute;
+            bottom: 50px;
+            left: 10px;
+            background: rgba(0, 0, 0, 0.5);
+            color: white;
+            border-radius: 5px;
+            padding: 10px;
+            font-family: Arial, sans-serif;
+            z-index: 1000;
+        }
         #compass {
             position: absolute;
             top: 10px;
@@ -89,22 +101,11 @@
         #compass span {
             display: block;
         }
-        #coordinatesInfo {
-            position: absolute;
-            bottom: 50px;
-            left: 10px;
-            background: rgba(0, 0, 0, 0.5);
-            color: white;
-            border-radius: 5px;
-            padding: 10px;
-            font-family: Arial, sans-serif;
-            z-index: 1000;
-        }
     </style>
 </head>
 <body>
     <button id="toggleMenu">☰</button>
-    <div id="sidebar" class="hidden">
+    <div id="sidebar">
         <h3>Markers</h3>
         <div id="menuItems">
             <button id="enemyButton" onclick="setMarkerType('enemy')">Enemy</button>
@@ -124,6 +125,12 @@
         <button onclick="enableDrawing()">Enable Drawing</button>
         <button onclick="disableDrawing()">Disable Drawing</button>
         <button onclick="clearAllDrawings()">Clear All Drawings</button>
+        <h3>Select Map</h3>
+        <select id="mapSelector" onchange="changeMap(event)">
+            <option value="mapa.png">Map 1</option>
+            <option value="map2.png">Map 2</option>
+            <option value="map3.png">Map 3</option>
+        </select>
     </div>
     <div id="map"></div>
     <div id="zoomInfo">Zoom Level: <span id="zoomLevel">0</span></div>
@@ -135,26 +142,34 @@
     <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/leaflet.draw/1.0.4/leaflet.draw.js"></script>
     <script>
-        // Initialize the map
         const map = L.map('map', {
             crs: L.CRS.Simple,
             maxZoom: 4,
             minZoom: -2
         });
 
-        // Set bounds and initial zoom level
+        let currentMapLayer;
         const bounds = [[0, 0], [2048, 2048]];
-        L.imageOverlay('mapa.png', bounds).addTo(map);
-        map.setView([1024, 1024], 0); // Change the "0" to your preferred initial zoom level
+        function loadMap(mapFile) {
+            if (currentMapLayer) {
+                map.removeLayer(currentMapLayer);
+            }
+            currentMapLayer = L.imageOverlay(mapFile, bounds).addTo(map);
+            map.setView([1024, 1024], 0);
+        }
+        loadMap('mapa.png');
 
-        // Update zoom level information
+        function changeMap(event) {
+            const mapFile = event.target.value;
+            loadMap(mapFile);
+        }
+
         const zoomInfo = document.getElementById('zoomLevel');
         map.on('zoomend', () => {
             zoomInfo.textContent = map.getZoom();
         });
         zoomInfo.textContent = map.getZoom();
 
-        // Update mouse coordinates dynamically
         const mouseCoordinates = document.getElementById('mouseCoordinates');
         map.on('mousemove', (e) => {
             const { lat, lng } = e.latlng;
@@ -170,10 +185,7 @@
 
         let currentMarkerType = null;
         let markers = [];
-        const drawnItems = new L.FeatureGroup();
-        map.addLayer(drawnItems);
 
-        // Marker functions
         function setMarkerType(type) {
             currentMarkerType = type;
 
@@ -196,7 +208,7 @@
                 .addTo(map)
                 .on('click', function () {
                     map.removeLayer(marker);
-                    markers = markers.filter(m => m !== marker); // Remove marker from the list
+                    markers = markers.filter(m => m !== marker);
                 });
 
             markers.push(marker);
@@ -219,6 +231,10 @@
         function removeAllMarkers() {
             markers.forEach(marker => map.removeLayer(marker));
             markers = [];
+        }
+
+        function defaultIcon() {
+            return L.icon({ iconUrl: 'icon-default.png', iconSize: [32, 32] });
         }
 
         // Adding custom markers
@@ -245,11 +261,10 @@
             document.getElementById('newMarkerType').value = '';
         }
 
-        function defaultIcon() {
-            return L.icon({ iconUrl: 'icon-default.png', iconSize: [32, 32] });
-        }
-
         // Drawing tools
+        const drawnItems = new L.FeatureGroup();
+        map.addLayer(drawnItems);
+
         const drawControl = new L.Control.Draw({
             draw: {
                 polyline: true,
