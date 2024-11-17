@@ -6,7 +6,10 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/leaflet.draw/1.0.4/leaflet.draw.css" />
-    <style>
+	<link rel="stylesheet" href="https://unpkg.com/@raruto/leaflet-gesture-handling@latest/dist/leaflet-gesture-handling.min.css" type="text/css">
+	<script src="https://unpkg.com/@raruto/leaflet-gesture-handling@latest/dist/leaflet-gesture-handling.min.js"></script>
+    <script src="leaflet.rotatedMarker.js"></script>
+	<style>
         body {
             margin: 0;
             height: 100vh;
@@ -28,7 +31,7 @@
 			width: 200px;
 			background: #333;
 			color: #fff;
-			padding: 15px;
+			padding: 1px;
 			display: flex;
 			flex-direction: column;
 			gap: 10px;
@@ -91,8 +94,8 @@
         }
         #toggleMenu {
             position: absolute;
-            top: 100px;
-            left: 10px;
+            top: 30px;
+            left: 50px;
             z-index: 1003;
             padding: 10px;
             background: #333;
@@ -225,11 +228,12 @@
             crs: L.CRS.Simple,
             maxZoom: 3,
             minZoom: 0,
+			gestureHandling: true, // Activa el manejo táctil
             maxBounds: [[0, 0], [2048, 2048]],
             maxBoundsViscosity: 1.0
         });
-
         let currentMapLayer;
+		const marker = L.marker([51.5, -0.09], { rotationAngle: 45 }).addTo(map); // Rotar marcador 45 grados
         const bounds = [[0, 0], [2048, 2048]];
         function loadMap(mapFile) {
             if (currentMapLayer) {
