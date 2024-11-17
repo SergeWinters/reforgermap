@@ -89,6 +89,17 @@
         #compass span {
             display: block;
         }
+        #coordinatesInfo {
+            position: absolute;
+            bottom: 50px;
+            left: 10px;
+            background: rgba(0, 0, 0, 0.5);
+            color: white;
+            border-radius: 5px;
+            padding: 10px;
+            font-family: Arial, sans-serif;
+            z-index: 1000;
+        }
     </style>
 </head>
 <body>
@@ -116,6 +127,7 @@
     </div>
     <div id="map"></div>
     <div id="zoomInfo">Zoom Level: <span id="zoomLevel">0</span></div>
+    <div id="coordinatesInfo">Coordinates: <span id="mouseCoordinates">---</span></div>
     <div id="compass">
         <span>🧭</span>
         <span id="currentDirection">N</span>
@@ -142,6 +154,13 @@
         });
         zoomInfo.textContent = map.getZoom();
 
+        // Update mouse coordinates dynamically
+        const mouseCoordinates = document.getElementById('mouseCoordinates');
+        map.on('mousemove', (e) => {
+            const { lat, lng } = e.latlng;
+            mouseCoordinates.textContent = `Lat: ${lat.toFixed(2)}, Lng: ${lng.toFixed(2)}`;
+        });
+
         const customIcons = {
             enemy: L.icon({ iconUrl: 'icon-enemy.png', iconSize: [32, 32] }),
             exit: L.icon({ iconUrl: 'icon-exit.png', iconSize: [32, 32] }),
@@ -153,10 +172,6 @@
         let markers = [];
         const drawnItems = new L.FeatureGroup();
         map.addLayer(drawnItems);
-
-        // Compass-related variables
-        let currentAngle = 0;
-        const directions = ['N', 'E', 'S', 'W'];
 
         // Marker functions
         function setMarkerType(type) {
@@ -272,6 +287,8 @@
             rotateMap(90);
         });
 
+        let currentAngle = 0;
+        const directions = ['N', 'E', 'S', 'W'];
         function rotateMap(angle) {
             currentAngle = (currentAngle + angle) % 360;
             const mapContainer = document.getElementById('map');
