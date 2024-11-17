@@ -28,25 +28,21 @@
         }
 
 		#sidebar {
-			width: 180px;
+			width: 200px;
 			background: #333;
 			color: #fff;
 			padding: 1px;
 			display: flex;
 			flex-direction: column;
 			gap: 10px;
-			overflow-y: auto; /* Activa el desplazamiento */
-			scrollbar-width: thin; /* Scrollbar estrecho (Firefox) */
-			scrollbar-color: #555 #333; /* Colores del scrollbar (Firefox) */
+			overflow-y: auto; /* Habilita el desplazamiento si el contenido excede la altura */
 			position: absolute;
-			top: 50px;
+			top: 50px; /* Espacio para controles superiores */
 			left: 0;
-			height: calc(100% - 50px); /* Ajusta para evitar superposición con footer */
+			bottom: 50px; /* Ajusta la altura para terminar justo encima del footer */
 			z-index: 1002;
-			transition: transform 0.3s ease-in-out;
-			border-right: 1px solid #444; /* Bordes opcionales para mejorar el diseño */
+			border-right: 1px solid #444; /* Opcional: separador visual */
 		}
-
 		#sidebar.hidden {
 			transform: translateX(-200px);
 		}
@@ -80,9 +76,9 @@
 			background: #444;
 			color: #fff;
 			border: none;
-			padding: 10px;
+			padding: 8px;
 			cursor: pointer;
-			border-radius: 5px;
+			border-radius: 12px;
 		}
 
 		#sidebar button:hover, #sidebar select:hover, #sidebar input:hover, #sidebar ul li:hover {
@@ -109,7 +105,7 @@
         }
         #zoomInfo {
             position: absolute;
-            bottom: 70px;
+            bottom: 120px;
             right: 20px;
             background: rgba(0, 0, 0, 0.5);
             color: white;
@@ -121,7 +117,7 @@
         }
         #coordinatesInfo {
             position: absolute;
-            bottom: 30px;
+            bottom: 80px;
             right: 20px;
             background: rgba(0, 0, 0, 0.5);
             color: white;
@@ -150,19 +146,19 @@
         #compass span {
             display: block;
         }
-        #footer {
-            background: #333;
-            color: #fff;
-            padding: 10px 20px;
-            font-size: 14px;
-            display: flex;
-            justify-content: space-between;
-            align-items: center;
-            position: fixed;
-            bottom: 0;
-            width: 100%;
-            z-index: 1003;
-        }
+		#footer {
+			background: #333;
+			color: #fff;
+			padding: 10px 5px;
+			font-size: 14px;
+			display: flex;
+			justify-content: space-between;
+			align-items: center;
+			position: fixed;
+			bottom: 0;
+			width: 100%;
+			z-index: 1003;
+		}
         #footer a {
             color: #ff8800;
             text-decoration: none;
