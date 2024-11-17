@@ -9,13 +9,21 @@
     <style>
         body {
             margin: 0;
-            display: flex;
             height: 100vh;
+            width: 100vw;
+            display: block;
+            overflow: hidden;
         }
         #map {
-            flex-grow: 1;
-            transform-origin: center center;
+            height: calc(100% - 50px); /* Ajustar para el footer */
+            width: 100%;
+            position: absolute;
+            top: 0;
+            left: 0;
+            z-index: 1; /* Mapa detrás de los elementos del menú */        
+            
         }
+
         #sidebar {
             width: 200px;
             background: #333;
@@ -25,8 +33,12 @@
             flex-direction: column;
             gap: 10px;
             overflow-y: auto;
+            position: absolute;
+            top: 50px; /* Espacio para controles superiores */
+            left: 0;
+            height: calc(100% - 50px); /* Evitar superposición con footer */
+            z-index: 1002; /* Menú sobre los controles de Leaflet */            
             transition: transform 0.3s ease-in-out;
-            margin-top: 50px;
         }
         #sidebar.hidden {
             transform: translateX(-200px);
@@ -49,7 +61,7 @@
             position: absolute;
             top: 10px;
             left: 10px;
-            z-index: 1000;
+            z-index: 1003;
             padding: 10px;
             background: #333;
             color: #fff;
@@ -62,31 +74,33 @@
         }
         #zoomInfo {
             position: absolute;
-            bottom: 10px;
-            left: 10px;
+            bottom: 70px;
+            right: 20px;
             background: rgba(0, 0, 0, 0.5);
             color: white;
             border-radius: 5px;
             padding: 10px;
             font-family: Arial, sans-serif;
-            z-index: 1000;
+            z-index: 1003;
+            text-align: right;
         }
         #coordinatesInfo {
             position: absolute;
-            bottom: 50px;
-            left: 10px;
+            bottom: 30px;
+            right: 20px;
             background: rgba(0, 0, 0, 0.5);
             color: white;
             border-radius: 5px;
             padding: 10px;
             font-family: Arial, sans-serif;
-            z-index: 1000;
+            z-index: 1003;
+            text-align: right;
         }
         #compass {
             position: absolute;
             top: 10px;
             right: 10px;
-            z-index: 1000;
+            z-index: 1003;
             background: rgba(0, 0, 0, 0.5);
             color: white;
             border-radius: 5px;
@@ -101,7 +115,31 @@
         #compass span {
             display: block;
         }
+        #footer {
+            background: #333;
+            color: #fff;
+            padding: 10px 20px;
+            font-size: 14px;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            position: fixed;
+            bottom: 0;
+            width: 100%;
+            z-index: 1003;
+        }
+        #footer a {
+            color: #ff8800;
+            text-decoration: none;
+            margin-right: 15px;
+        }
+        #footer a:hover {
+            text-decoration: underline;
+        }
     </style>
+	<!-- Pixel Code - https://stats.forgenex.com/ -->
+	<script defer src="https://stats.forgenex.com/pixel/5YKZG0nR2y0g7vKK"></script>
+	<!-- END Pixel Code -->	
 </head>
 <body>
     <button id="toggleMenu">☰</button>
@@ -111,7 +149,7 @@
             <button id="enemyButton" onclick="setMarkerType('enemy')">Enemy</button>
             <button id="exitButton" onclick="setMarkerType('exit')">Exit Point</button>
             <button id="respawnButton" onclick="setMarkerType('respawn')">Respawn Point</button>
-            <button id="lootButton" onclick="setMarkerType('loot')">Loot</button>
+            <button id="lootButton" onclick="setMarkerType('loot')">TO-DO</button>
         </div>
         <button onclick="undoLastMarker()">Undo Last</button>
         <button onclick="removeAllMarkers()">Remove All</button>
@@ -137,6 +175,16 @@
     <div id="compass">
         <span>🧭</span>
         <span id="currentDirection">N</span>
+    </div>
+    <div id="footer">
+        <div>
+            <a href="https://www.reforgemap.com/help" target="_blank">Help</a>
+            <a href="https://www.reforgemap.com/about" target="_blank">About</a>
+            <a href="https://www.reforgemap.com/contact" target="_blank">Contact</a>
+        </div>
+        <div>
+            Version 4.0 - <a href="https://www.reforgemap.com/changelog" target="_blank">Changelog</a>
+        </div>
     </div>
     <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/leaflet.draw/1.0.4/leaflet.draw.js"></script>
