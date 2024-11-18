@@ -419,5 +419,115 @@
             setTimeout(() => map.invalidateSize(), 300);
         }
     </script>
+<!-- Adding MiniMap -->
+<div id="minimapContainer">
+    <button id="closeMinimap">×</button>
+    <div id="minimap"></div>
+</div>
+<button id="toggleMinimap">Toggle MiniMap</button>
+<style>
+    #minimapContainer {
+        position: absolute;
+        bottom: 190px;
+        right: 20px;
+        width: 200px;
+        height: 200px;
+        z-index: 1004;
+        border: 1px solid #555;
+        background-color: #333;
+        border-radius: 5px;
+        overflow: hidden;
+        display: block; /* Inicialmente visible */
+    }
+
+    #minimap {
+        width: 100%;
+        height: 100%;
+    }
+
+    #toggleMinimap {
+        position: absolute;
+        bottom: 10px; /* Colocado debajo del minimapa */
+        right: 20px;
+        background: #444;
+        color: #fff;
+        border: none;
+        border-radius: 5px;
+        padding: 5px;
+        cursor: pointer;
+        z-index: 1005;
+    }
+
+    #toggleMinimap:hover {
+        background: #555;
+    }
+
+    #closeMinimap {
+        position: absolute;
+        top: 5px;
+        right: 5px;
+        background: #ff4444;
+        color: #fff;
+        border: none;
+        border-radius: 50%;
+        width: 20px;
+        height: 20px;
+        font-size: 14px;
+        text-align: center;
+        line-height: 20px;
+        cursor: pointer;
+        z-index: 1005;
+    }
+
+    #closeMinimap:hover {
+        background: #ff6666;
+    }
+</style>
+<script>
+    const minimapContainer = document.getElementById('minimapContainer');
+    const toggleMinimapButton = document.getElementById('toggleMinimap');
+    const closeMinimapButton = document.getElementById('closeMinimap');
+
+    // Toggle button to show/hide the minimap container
+    toggleMinimapButton.addEventListener('click', () => {
+        const isVisible = minimapContainer.style.display !== 'none';
+        minimapContainer.style.display = isVisible ? 'none' : 'block';
+    });
+
+    // Close button to hide the minimap container
+    closeMinimapButton.addEventListener('click', () => {
+        minimapContainer.style.display = 'none';
+    });
+
+    const minimapBounds = [[0, 0], [2048, 2048]];
+    const minimap = L.map('minimap', {
+        crs: L.CRS.Simple,
+        zoomControl: false,
+        attributionControl: false,
+        maxBounds: minimapBounds,
+        maxBoundsViscosity: 1.0,
+    }).setView([1024, 1024], -1); // Zoom alejado para mostrar más del mapa principal
+
+    const minimapLayer = L.imageOverlay('mapa.png', minimapBounds).addTo(minimap);
+
+    // Sync main map with minimap
+    map.on('move', () => {
+        const mainCenter = map.getCenter();
+        minimap.setView(mainCenter, minimap.getZoom() - 2);
+    });
+
+    // Allow clicking on minimap to move the main map
+    minimap.on('click', (e) => {
+        const clickedPoint = e.latlng;
+        map.setView(clickedPoint, map.getZoom());
+    });
+
+    // Update minimap layer on main map change
+    document.getElementById('mapSelector').addEventListener('change', (e) => {
+        const selectedMap = e.target.value;
+        minimapLayer.setUrl(selectedMap);
+    });
+</script>
+	
 </body>
 </html>
