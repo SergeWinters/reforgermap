@@ -1,0 +1,75 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Help - Interactive Map</title>
+    <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
+    <style>
+        body {
+            background: #333;
+            color: #fff;
+            font-family: Arial, sans-serif;
+            margin: 0;
+            padding: 20px;
+        }
+        h1, h2 {
+            color: #ff8800;
+        }
+        a {
+            color: #ff8800;
+            text-decoration: none;
+        }
+        a:hover {
+            text-decoration: underline;
+        }
+        ul {
+            padding-left: 20px;
+        }
+        ul li {
+            margin-bottom: 10px;
+        }
+        .section {
+            margin-bottom: 20px;
+        }
+        .back-link {
+            display: block;
+            margin-top: 20px;
+            text-align: center;
+        }
+    </style>
+</head>
+<body>
+    <h1>Help</h1>
+    <div class="section">
+        <h2>Features Overview</h2>
+        <p>This interactive map offers several tools and features designed to enhance your planning and navigation experience in <strong>Arma Reforger</strong>.</p>
+    </div>
+    <div class="section">
+        <h2>Available Features</h2>
+        <ul>
+            <li><strong>Markers:</strong> Place customizable markers on the map, such as enemies, respawn points, and loot.</li>
+            <li><strong>Remove Markers:</strong> Click on markers to delete them, or use the "Remove All" button to clear the map.</li>
+            <li><strong>Undo Last:</strong> Reverse your last action to remove the most recently placed marker.</li>
+            <li><strong>Drawing Tools:</strong> Draw shapes (lines, circles, rectangles) on the map for planning strategies.</li>
+            <li><strong>POI Search:</strong> Search for predefined Points of Interest (POI) using the search bar.</li>
+            <li><strong>Minimap:</strong> A small overview map is available on the right side, showing your location within the full map. You can interact with it to move the main map.</li>
+            <li><strong>Compass:</strong> Rotate the map to align with different directions using the compass control.</li>
+            <li><strong>Zoom Control:</strong> Adjust the zoom level and display the current zoom in real time.</li>
+            <li><strong>Map Selector:</strong> Switch between different maps seamlessly using the dropdown menu.</li>
+        </ul>
+    </div>
+    <div class="section">
+        <h2>Quick Tips</h2>
+        <ul>
+            <li>To add a marker, select the desired type from the menu and click on the map.</li>
+            <li>Use the minimap to quickly move around the main map by clicking on the area you want to focus on.</li>
+            <li>Drawing tools can be enabled or disabled from the menu for planning complex routes or strategies.</li>
+            <li>Rotate the map using the compass if you need a different perspective.</li>
+        </ul>
+    </div>
+    <div class="back-link">
+        <a href="#" onclick="closeHelp()">Go Back</a>
+    </div>
+</body>
+</html>
