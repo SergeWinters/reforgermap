@@ -9,6 +9,52 @@
 	<link rel="stylesheet" href="https://unpkg.com/@raruto/leaflet-gesture-handling@latest/dist/leaflet-gesture-handling.min.css" type="text/css">
 	<script src="https://unpkg.com/@raruto/leaflet-gesture-handling@latest/dist/leaflet-gesture-handling.min.js"></script>
     <script src="leaflet.rotatedMarker.js"></script>
+	<!-- Meta Tags for SEO -->
+	<meta charset="UTF-8">
+	<meta name="viewport" content="width=device-width, initial-scale=1.0">
+	<meta name="description" content="Plan your strategies and navigate efficiently in Arma Reforger with our interactive map tool. Add markers, search POIs, draw plans, and collaborate with your team.">
+	<meta name="keywords" content="Arma Reforger map, interactive map, POI search, markers, strategy planning, drawing tools, minimap, map tools for games">
+	<meta name="author" content="ForgeNEX Interactive">
+	<meta name="robots" content="index, follow">
+	<meta name="language" content="en">
+	<meta name="theme-color" content="#333">
+
+	<!-- Open Graph Tags for Social Media -->
+	<meta property="og:title" content="Interactive Map for Arma Reforger">
+	<meta property="og:description" content="A powerful tool for players to plan strategies, add markers, and interact with the map of Arma Reforger. Includes POI search, drawing tools, and more.">
+	<meta property="og:image" content="https://www.reforgemap.com/og-image.png">
+	<meta property="og:url" content="https://www.reforgemap.com">
+	<meta property="og:type" content="website">
+	<meta property="og:site_name" content="Reforger Interactive Map">
+
+	<!-- Twitter Card Tags -->
+	<meta name="twitter:card" content="summary_large_image">
+	<meta name="twitter:title" content="Interactive Map for Arma Reforger">
+	<meta name="twitter:description" content="Plan your strategies and collaborate effectively with our interactive map for Arma Reforger.">
+	<meta name="twitter:image" content="https://www.reforgemap.com/og-image.png">
+
+	<!-- Canonical URL -->
+	<link rel="canonical" href="https://www.reforgemap.com">
+
+	<!-- Favicon -->
+	<link rel="icon" href="/favicon.ico" type="image/x-icon">
+
+	<!-- Structured Data for Search Engines -->
+	<script type="application/ld+json">
+	{
+		"@context": "http://schema.org",
+		"@type": "WebSite",
+		"name": "Reforger Interactive Map",
+		"url": "https://www.reforgemap.com",
+		"potentialAction": {
+			"@type": "SearchAction",
+			"target": "https://www.reforgemap.com/?q={search_term_string}",
+			"query-input": "required name=search_term_string"
+		},
+		"description": "Interactive map tool for Arma Reforger players. Plan strategies, add markers, search POIs, and collaborate with your team."
+	}
+	</script>
+	
 	<style>
         body {
             margin: 0;
@@ -641,7 +687,7 @@
 			attributionControl: false,
 			maxBounds: minimapBounds,
 			maxBoundsViscosity: 1.0,
-		}).setView([1024, 1024], -1); // Zoom alejado para mostrar más del mapa principal
+		}).setView([1824, 1824], -1); // Zoom alejado para mostrar más del mapa principal
 
 		const minimapLayer = L.imageOverlay('mapa.png', minimapBounds).addTo(minimap);
 
