@@ -241,9 +241,9 @@
         <button onclick="clearAllDrawings()">Clear All Drawings</button>
         <h3>Select Map</h3>
         <select id="mapSelector" onchange="changeMap(event)">
-            <option value="mapa.png">Map 1</option>
-            <option value="map2.png">Map 2</option>
-            <option value="map3.png">Map 3</option>
+            <option value="maps/mapa1.png">Map 1</option>
+            <option value="maps/mapa2.png">Map 2</option>
+            <option value="maps/mapa3.png">Map 3</option>
         </select>
     </div>
     <div id="map"></div>
@@ -296,7 +296,7 @@
             currentMapLayer = L.imageOverlay(mapFile, bounds).addTo(map);
             map.setView([1024, 1024], 1);
         }
-        loadMap('mapa.png');
+        loadMap('maps/mapa1.png');
 
         function changeMap(event) {
             const mapFile = event.target.value;
@@ -689,7 +689,7 @@
 			maxBoundsViscosity: 1.0,
 		}).setView([1824, 1824], -1); // Zoom alejado para mostrar más del mapa principal
 
-		const minimapLayer = L.imageOverlay('mapa.png', minimapBounds).addTo(minimap);
+		const minimapLayer = L.imageOverlay('maps/mapa1.png', minimapBounds).addTo(minimap);
 
 		// Sync main map with minimap
 		map.on('move', () => {
