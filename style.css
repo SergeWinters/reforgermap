@@ -1,0 +1,313 @@
+body {
+    margin: 0;
+    height: 100vh;
+    width: 100vw;
+    display: block;
+    overflow: hidden;
+}
+#map {
+    height: calc(100% - 50px); /* Ajustar para el footer */
+    width: 100%;
+    position: absolute;
+    top: 0;
+    left: 0;
+    z-index: 1; /* Mapa detrás de los elementos del menú */
+}
+
+#sidebar {
+    width: 200px;
+    background: #333;
+    color: #fff;
+    padding: 1px;
+    display: flex;
+    flex-direction: column;
+    gap: 10px;
+    overflow-y: auto;
+    position: absolute;
+    top: 50px;
+    left: 0;
+    bottom: 50px;
+    z-index: 1002;
+    border-right: 1px solid #444;
+}
+#sidebar.hidden {
+    transform: translateX(-200px);
+}
+
+#sidebar::-webkit-scrollbar {
+    width: 8px;
+}
+
+#sidebar::-webkit-scrollbar-track {
+    background: #333;
+}
+
+#sidebar::-webkit-scrollbar-thumb {
+    background: #555;
+    border-radius: 4px;
+}
+
+#sidebar::-webkit-scrollbar-thumb:hover {
+    background: #777;
+}
+
+#sidebar h3 {
+    font-size: 16px;
+    border-bottom: 1px solid #444;
+    padding-bottom: 5px;
+    margin-bottom: 10px;
+    color: #ff8800;
+}
+
+#sidebar button, #sidebar select, #sidebar input, #sidebar ul li {
+    background: #444;
+    color: #fff;
+    border: none;
+    padding: 8px;
+    cursor: pointer;
+    border-radius: 12px;
+}
+
+#sidebar button:hover, #sidebar select:hover, #sidebar input:hover, #sidebar ul li:hover {
+    background: #555;
+}
+
+#sidebar .selected {
+    background: #ff8800;
+}
+#toggleMenu {
+    position: absolute;
+    top: 30px;
+    left: 50px;
+    z-index: 1003;
+    padding: 10px;
+    background: #333;
+    color: #fff;
+    border: none;
+    border-radius: 5px;
+    cursor: pointer;
+}
+#toggleMenu:hover {
+    background: #444;
+}
+#zoomInfo {
+    position: absolute;
+    bottom: 120px;
+    right: 20px;
+    background: rgba(0, 0, 0, 0.5);
+    color: white;
+    border-radius: 5px;
+    padding: 10px;
+    font-family: Arial, sans-serif;
+    z-index: 1003;
+    text-align: right;
+}
+#coordinatesInfo {
+    position: absolute;
+    bottom: 80px;
+    right: 20px;
+    background: rgba(0, 0, 0, 0.5);
+    color: white;
+    border-radius: 5px;
+    padding: 10px;
+    font-family: Arial, sans-serif;
+    z-index: 1003;
+    text-align: right;
+}
+#compass {
+    position: absolute;
+    top: 10px;
+    right: 10px;
+    z-index: 1003;
+    background: rgba(0, 0, 0, 0.5);
+    color: white;
+    border-radius: 5px;
+    padding: 10px;
+    font-family: Arial, sans-serif;
+    text-align: center;
+    cursor: pointer;
+}
+#compass:hover {
+    background: rgba(0, 0, 0, 0.7);
+}
+#compass span {
+    display: block;
+}
+#footer {
+    background: #333;
+    color: #fff;
+    padding: 10px 5px;
+    font-size: 14px;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    position: fixed;
+    bottom: 0;
+    width: 100%;
+    z-index: 1003;
+}
+#footer a {
+    color: #ff8800;
+    text-decoration: none;
+    margin-right: 15px;
+}
+#footer a:hover {
+    text-decoration: underline;
+}
+
+#minimapContainer {
+    position: absolute;
+    bottom: 190px;
+    right: 20px;
+    width: 200px;
+    height: 200px;
+    z-index: 1004;
+    border: 1px solid #555;
+    background-color: #333;
+    border-radius: 5px;
+    overflow: hidden;
+    display: block;
+}
+
+#minimap {
+    width: 100%;
+    height: 100%;
+}
+
+#toggleMinimap {
+    position: absolute;
+    bottom: 160px; /* Colocado debajo del minimapa */
+    right: 20px;
+    background: #444;
+    color: #fff;
+    border: none;
+    border-radius: 5px;
+    padding: 5px;
+    cursor: pointer;
+    z-index: 1005;
+}
+
+#toggleMinimap:hover {
+    background: #555;
+}
+
+#closeMinimap {
+    position: absolute;
+    top: 5px;
+    right: 5px;
+    background: #ff4444;
+    color: #fff;
+    border: none;
+    border-radius: 50%;
+    width: 20px;
+    height: 20px;
+    font-size: 14px;
+    text-align: center;
+    line-height: 20px;
+    cursor: pointer;
+    z-index: 1005;
+}
+
+#closeMinimap:hover {
+    background: #ff6666;
+}
+#modal {
+    position: fixed;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+    background: rgba(0, 0, 0, 0.8);
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    z-index: 1000;
+    visibility: hidden;
+    opacity: 0;
+    transition: opacity 0.3s, visibility 0.3s;
+}
+
+#modal.visible {
+    visibility: visible;
+    opacity: 1;
+}
+
+.modal-content {
+    width: 80%;
+    height: 80%;
+    background: #333;
+    border-radius: 10px;
+    overflow: hidden;
+    position: relative;
+    display: flex;
+    flex-direction: column;
+}
+
+.modal-content iframe {
+    flex-grow: 1;
+    width: 100%;
+    height: 100%;
+}
+
+.modal-content button {
+    background: #444;
+    color: #fff;
+    border: none;
+    padding: 10px;
+    cursor: pointer;
+    border-radius: 5px;
+    position: absolute;
+    top: 10px;
+    right: 10px;
+    z-index: 1001;
+}
+#help-modal {
+    position: fixed;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+    background: rgba(0, 0, 0, 0.8);
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    z-index: 1000;
+    visibility: hidden;
+    opacity: 0;
+    transition: opacity 0.3s, visibility 0.3s;
+}
+
+#help-modal.visible {
+    visibility: visible;
+    opacity: 1;
+}
+
+.modal-content {
+    width: 80%;
+    height: 80%;
+    background: #333;
+    border-radius: 10px;
+    overflow: hidden;
+    position: relative;
+    display: flex;
+    flex-direction: column;
+}
+
+.modal-content iframe {
+    flex-grow: 1;
+    width: 100%;
+    height: 100%;
+}
+
+.modal-content button {
+    background: #444;
+    color: #fff;
+    border: none;
+    padding: 10px;
+    cursor: pointer;
+    border-radius: 5px;
+    position: absolute;
+    top: 10px;
+    right: 10px;
+    z-index: 1001;
+}
