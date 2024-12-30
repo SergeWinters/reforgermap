@@ -213,6 +213,40 @@
         #footer a:hover {
             text-decoration: underline;
         }
+		#groupLinkModal {
+			display: none;
+			position: fixed;
+			top: 0;
+			left: 0;
+			width: 100%;
+			height: 100%;
+			background: rgba(0, 0, 0, 0.5);
+			justify-content: center;
+			align-items: center;
+			z-index: 1004;
+		}
+		#groupLinkModal.show {
+			display: flex;
+		}
+		#groupLinkModalContent {
+			background: #333;
+			padding: 20px;
+			border-radius: 5px;
+			text-align: center;
+			color: #fff;
+		}
+		#groupLinkModalContent button {
+			background: #444;
+			color: #fff;
+			border: none;
+			padding: 8px 12px;
+			cursor: pointer;
+			border-radius: 5px;
+			margin-top: 10px;
+		}
+		#groupLinkModalContent button:hover {
+			background: #555;
+		}
     </style>
 	<!-- Pixel Code - https://stats.forgenex.com/ -->
 	<script defer src="https://stats.forgenex.com/pixel/5YKZG0nR2y0g7vKK"></script>
@@ -230,6 +264,7 @@
         </div>
         <button onclick="undoLastMarker()">Undo Last</button>
         <button onclick="removeAllMarkers()">Remove All</button>
+		<button id="myGroupButton" onclick="generateGroupLink()">My Group</button>
         <h3>POI Search</h3>
         <input type="text" id="poiSearch" placeholder="Search POI" oninput="searchPOI()" />
         <ul id="poiList">
@@ -275,10 +310,18 @@
             Version 6.0 - <a href="https://github.com/SergeWinters/reforgermap/commits/main/" target="_blank">Changelog</a>
         </div>
     </div>
+	<div id="groupLinkModal">
+		<div id="groupLinkModalContent">
+			<h3>Share this link with your team!</h3>
+			<p id="groupLinkText"></p>
+			<button onclick="closeGroupLinkModal()">Close</button>
+		</div>
+	</div>
     <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/leaflet.draw/1.0.4/leaflet.draw.js"></script>
+	<script src="https://cdnjs.cloudflare.com/ajax/libs/socket.io/4.7.4/socket.io.min.js"></script>
     <script>
-        const map = L.map('map', {
+         const map = L.map('map', {
             crs: L.CRS.Simple,
             maxZoom: 3,
             minZoom: 0,
@@ -325,41 +368,159 @@
         let markers = [];
         let currentMarkerType = null;
 
-        function setMarkerType(type) {
-            currentMarkerType = type;
+       function setMarkerType(type) {
+          currentMarkerType = type;
 
-            document.querySelectorAll('#menuItems button').forEach(button => {
-                button.classList.remove('selected');
-            });
-            const selectedButton = document.querySelector(`[id="${type}Button"]`);
-            if (selectedButton) {
-                selectedButton.classList.add('selected');
-            }
+          document.querySelectorAll('#menuItems button').forEach(button => {
+            button.classList.remove('selected');
+          });
+          const selectedButton = document.querySelector(`[id="${type}Button"]`);
+          if (selectedButton) {
+            selectedButton.classList.add('selected');
+          }
         }
 
-        map.on('click', e => {
-            if (!currentMarkerType) return;
+      let socket;
+      let groupId;
+      function generateGroupLink() {
+        groupId = generateRandomId();
+        const groupLink = `${window.location.origin}${window.location.pathname}?group=${groupId}`;
 
-            const lat = e.latlng.lat;
-            const lng = e.latlng.lng;
+        document.getElementById('groupLinkText').textContent = groupLink;
+		document.getElementById('groupLinkModal').classList.add('show');
 
-            const marker = L.marker([lat, lng], { icon: customIcons[currentMarkerType] }).addTo(map).on('click', function () {
-                map.removeLayer(marker);
-                markers = markers.filter(m => m !== marker);
-            });
+		// Setup WebSocket
+		if(socket){
+			socket.disconnect();
+		}
+        socket = io(`http://localhost:3000?group=${groupId}`);
+		socket.on('connect', ()=>{
+			 console.log("connected to group");
+		})
+		socket.on('initialData', (initialData) => {
+            console.log("initial data", initialData)
+              initialData.markers.forEach(markerData => {
+                   addMarkerFromSocket(markerData.markerType, markerData.coords);
+              });
+              initialData.drawings.forEach(drawData => {
+                   addDrawFromSocket(drawData.layer);
+              });
+           });
+        socket.on('mapAction', (data) => {
+           handleMapAction(data);
+         });
+      }
+       function closeGroupLinkModal(){
+			document.getElementById('groupLinkModal').classList.remove('show');
+		}
+		function generateRandomId() {
+			return Math.random().toString(36).substring(2, 15) + Math.random().toString(36).substring(2, 15);
+		}
 
-            markers.push(marker);
+      // Check if there is a groupId in the URL and try to join
+      const urlParams = new URLSearchParams(window.location.search);
+      const urlGroupId = urlParams.get('group');
+      if (urlGroupId) {
+          groupId = urlGroupId;
+           // Setup WebSocket
+		   if(socket){
+				socket.disconnect();
+			}
+        	socket = io(`http://localhost:3000?group=${groupId}`);
+			 socket.on('connect', ()=>{
+				 console.log("connected to group");
+			});
+			 socket.on('initialData', (initialData) => {
+            console.log("initial data", initialData)
+              initialData.markers.forEach(markerData => {
+                   addMarkerFromSocket(markerData.markerType, markerData.coords);
+              });
+              initialData.drawings.forEach(drawData => {
+                   addDrawFromSocket(drawData.layer);
+              });
+           });
+          	socket.on('mapAction', (data) => {
+          		 handleMapAction(data);
+          	 });
+		}
+      function handleMapAction(data) {
+           switch (data.type) {
+             case 'marker':
+                addMarkerFromSocket(data.markerType,data.coords);
+              break;
+             case 'draw':
+               addDrawFromSocket(data.layer);
+               break;
+			 case 'removeMarker':
+                removeMarkerFromSocket(data.coords)
+				break
+			 case 'removeDrawing':
+                removeDrawingFromSocket(data.layer)
+				break
+          }
+       }
+	   // Funciones auxiliares para remove marker y draw from socket
+	   function removeMarkerFromSocket(coords){
+        markers = markers.filter(marker =>{
+			const markerCoords = marker.getLatLng();
+			if((markerCoords.lat === coords.lat) && (markerCoords.lng === coords.lng)){
+				map.removeLayer(marker);
+				return false
+			}
+			return true
+		});
 
-            currentMarkerType = null;
-            document.querySelectorAll('#menuItems button').forEach(button => {
-                button.classList.remove('selected');
-            });
+	   }
+	    function removeDrawingFromSocket(layerData){
+			drawnItems.eachLayer(layer => {
+			  const layerString = JSON.stringify(layer.toGeoJSON());
+			  if(layerString === layerData){
+				drawnItems.removeLayer(layer);
+			  }
+			});
+       }
+    // Funciones auxiliares para add marker y draw from socket
+      function addMarkerFromSocket(markerType, coords){
+         const marker = L.marker([coords.lat, coords.lng], { icon: customIcons[markerType] }).addTo(map).on('click', function () {
+             map.removeLayer(marker);
+              markers = markers.filter(m => m !== marker);
+          });
+         markers.push(marker);
+     }
+    function addDrawFromSocket(layerData){
+         const layer = L.geoJSON(JSON.parse(layerData)).addTo(drawnItems);
+     }
+
+    // Modifica las funciones para que emitan los eventos al websocket
+    map.on('click', e => {
+        if (!currentMarkerType) return;
+        const lat = e.latlng.lat;
+        const lng = e.latlng.lng;
+        if(socket){
+            socket.emit('mapAction', { type: 'marker', markerType: currentMarkerType, coords: {lat, lng} });
+        }
+		currentMarkerType = null;
+		document.querySelectorAll('#menuItems button').forEach(button => {
+			button.classList.remove('selected');
         });
+     });
+     map.on(L.Draw.Event.CREATED, function (event) {
+        const layer = event.layer;
+        const layerData = JSON.stringify(layer.toGeoJSON());
+        drawnItems.addLayer(layer);
+        if(socket){
+             socket.emit('mapAction', {type: 'draw', layer: layerData});
+         }
+      });
 
         function undoLastMarker() {
             if (markers.length > 0) {
                 const lastMarker = markers.pop();
+				const coords = lastMarker.getLatLng();
                 map.removeLayer(lastMarker);
+				if(socket){
+                    socket.emit('mapAction', { type: 'removeMarker', coords: coords });
+				}
             } else {
                 alert('No markers to undo.');
             }
@@ -414,8 +575,6 @@
         }
 
         // Drawing Tools
-        const drawnItems = new L.FeatureGroup();
-        map.addLayer(drawnItems);
 
         const drawControl = new L.Control.Draw({
             draw: {
@@ -431,11 +590,6 @@
             }
         });
 
-        map.on(L.Draw.Event.CREATED, function (event) {
-            const layer = event.layer;
-            drawnItems.addLayer(layer);
-        });
-
         function enableDrawing() {
             map.addControl(drawControl);
         }
@@ -444,7 +598,13 @@
             map.removeControl(drawControl);
         }
 
-        function clearAllDrawings() {
+       function clearAllDrawings() {
+             drawnItems.eachLayer(layer => {
+                const layerData = JSON.stringify(layer.toGeoJSON());
+                if(socket){
+                 socket.emit('mapAction', { type: 'removeDrawing', layer: layerData });
+                }
+             });
             drawnItems.clearLayers();
         }
 
