@@ -1,6 +1,3 @@
-<?php
-include 'config.php';
-?>
 <!DOCTYPE html>
 <html lang="en">
 <head>
@@ -85,9 +82,9 @@ include 'config.php';
         <button onclick="clearAllDrawings()">Clear All Drawings</button>
         <h3>Select Map</h3>
         <select id="mapSelector" onchange="changeMap(event)">
-            <option value="maps/mapa1.png">Map 1</option>
-            <option value="maps/mapa2.png">Map 2</option>
-            <option value="maps/mapa3.png">Map 3</option>
+            <option value="maps/mapa1.png">Everon</option>
+            <option value="maps/mapa2.png">Arland</option>
+            <option value="maps/mapa3.png">Everon</option>
         </select>
     </div>
     <div id="map"></div>
