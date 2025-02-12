@@ -67,15 +67,9 @@
             <button id="enemyButton" onclick="setMarkerType('enemy')">Enemy</button>
             <button id="exitButton" onclick="setMarkerType('exit')">Attack</button>
             <button id="respawnButton" onclick="setMarkerType('respawn')">Respawn</button>
-            <button id="lootButton" onclick="setMarkerType('loot')">GO</button>
         </div>
         <button onclick="undoLastMarker()">Undo Last</button>
         <button onclick="removeAllMarkers()">Remove All</button>
-        <h3>POI Search</h3>
-        <input type="text" id="poiSearch" placeholder="Search POI" oninput="searchPOI()" />
-        <ul id="poiList">
-            <!-- Dynamic list of POI -->
-        </ul>
         <h3>Drawing Tools</h3>
         <button onclick="enableDrawing()">Enable Drawing</button>
         <button onclick="disableDrawing()">Disable Drawing</button>
@@ -110,7 +104,7 @@
 					<button onclick="closeAbout()">Close</button>
 				</div>
 			</div>
-            <a href="mailto:sergewint3rs@gmail.com" target="_blank">Contact</a>
+            <a href="https://discord.gg/MfNDSg85Pf" target="_blank">Discord</a>
         </div>
         <div>
             Version 6.0 - <a href="https://github.com/SergeWinters/reforgermap/commits/main/" target="_blank">Changelog</a>
@@ -160,7 +154,7 @@
             enemy: L.icon({ iconUrl: 'images/icon-enemy.png', iconSize: [32, 32] }),
             exit: L.icon({ iconUrl: 'images/icon-exit.png', iconSize: [32, 32] }),
             respawn: L.icon({ iconUrl: 'images/icon-respawn.png', iconSize: [32, 32] }),
-            loot: L.icon({ iconUrl: 'images/icon-loot.png', iconSize: [32, 32] })
+            loot: L.icon({ iconUrl: 'images/icon-loot.png', iconSize: [15, 15] })
         };
 
         let markers = [];
@@ -211,48 +205,29 @@
             markers = [];
         }
 
-        // POI List
-        const poiList = [
-            { name: "Saint Philippe (HQ-N)", coords: [1755.67, 666.50] },
-            { name: "Saint-Pierre (HQ-S)", coords: [250.16, 1592.62] },
-            { name: "Montignac", coords: [1140.54, 712] },
-            { name: "Provins", coords: [988.61, 846.50] },
-            { name: "Levie", coords: [769.24, 1190] }
-        ];
+		// POI List
+		const poiList = [
+			{ name: "Saint Philippe (HQ-N)", coords: [1755.67, 666.50], image: "images/saint_philippe.jpg" },
+			{ name: "Saint-Pierre (HQ-S)", coords: [257.16, 1619.62], image: "images/saint_pierre.jpg" },
+			{ name: "Montignac", coords: [1140.54, 712], image: "images/montignac.jpg" },
+			{ name: "Tower Entre-Deux", coords: [1181.54, 883], image: "images/twdeux.jpg" },
+			{ name: "Provins", coords: [1007.59, 840], image: "images/provins.jpg" },
+			{ name: "MB Levie", coords: [716.11, 1194], image: "images/bmlevie.jpg" },
+			{ name: "Levie", coords: [780.55, 1185.50], image: "images/levie.jpg" }
+		];
 
-        // Populate POI List
-        function populatePOIList() {
-            const listElement = document.getElementById('poiList');
-            listElement.innerHTML = '';
-            poiList.forEach(poi => {
-                const li = document.createElement('li');
-                li.textContent = poi.name;
-                li.style.cursor = 'pointer';
-                li.onclick = () => {
-                    map.setView(poi.coords, 3);
-                    L.marker(poi.coords, { icon: customIcons.loot }).addTo(map).bindPopup(poi.name).openPopup();
-                };
-                listElement.appendChild(li);
-            });
-        }
-        populatePOIList();
-
-        function searchPOI() {
-            const query = document.getElementById('poiSearch').value.toLowerCase();
-            const listElement = document.getElementById('poiList');
-            listElement.innerHTML = '';
-            poiList.filter(poi => poi.name.toLowerCase().includes(query))
-                .forEach(poi => {
-                    const li = document.createElement('li');
-                    li.textContent = poi.name;
-                    li.style.cursor = 'pointer';
-                    li.onclick = () => {
-                        map.setView(poi.coords, 3);
-                        L.marker(poi.coords, { icon: customIcons.loot }).addTo(map).bindPopup(poi.name).openPopup();
-                    };
-                    listElement.appendChild(li);
-                });
-        }
+		// Add POI markers to the map
+		poiList.forEach(poi => {
+			const marker = L.marker(poi.coords, { icon: customIcons.loot }).addTo(map);
+			marker.bindPopup(`
+				<div style="padding: 0; margin: 0;">
+					<img src="${poi.image}" alt="${poi.name}" style="width: 400px; height: auto;">
+				</div>
+			`, {
+				maxWidth: "auto", // Permite que el popup se ajuste al tamaño de la imagen
+				className: "custom-popup" // Clase CSS personalizada para el popup
+			});
+		});
 
         // Drawing Tools
         const drawnItems = new L.FeatureGroup();

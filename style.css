@@ -14,6 +14,25 @@ body {
     z-index: 1; /* Mapa detrás de los elementos del menú */
 }
 
+/* Estilo personalizado para el popup */
+.custom-popup .leaflet-popup-content-wrapper {
+    padding: 0;
+    margin: 0;
+    background: none;
+    box-shadow: none;
+    border: none;
+}
+
+.custom-popup .leaflet-popup-content {
+    margin: 0;
+    padding: 0;
+}
+
+.custom-popup .leaflet-popup-tip {
+    background: none;
+    box-shadow: none;
+}
+
 #sidebar {
     width: 200px;
     background: #333;
