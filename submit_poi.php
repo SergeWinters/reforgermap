@@ -1,73 +1,76 @@
 <?php
+// Ensure no stray output before this line
 require_once 'db_config.php'; // Ensure this path is correct
 
+// Set header to JSON at the very beginning
 header('Content-Type: application/json');
 
-// Basic input validation
-if ($_SERVER['REQUEST_METHOD'] !== 'POST') {
-    echo json_encode(['success' => false, 'message' => 'Invalid request method.']);
+// Centralized error handler to ensure JSON output
+function send_json_error($message, $log_message = null, $http_code = 400) {
+    if ($log_message === null) {
+        $log_message = $message;
+    }
+    error_log("POI Submission Error: " . $log_message);
+    http_response_code($http_code);
+    echo json_encode(['success' => false, 'message' => $message]);
     exit;
+}
+
+if ($_SERVER['REQUEST_METHOD'] !== 'POST') {
+    send_json_error('Invalid request method.');
 }
 
 $name = isset($_POST['name']) ? trim($_POST['name']) : '';
-$latitude = isset($_POST['latitude']) ? (float)$_POST['latitude'] : null;
-$longitude = isset($_POST['longitude']) ? (float)$_POST['longitude'] : null;
-$map_id = isset($_POST['map_id']) ? (int)$_POST['map_id'] : null;
+$latitude = isset($_POST['latitude']) ? $_POST['latitude'] : null; // Keep as string for now, cast to float later
+$longitude = isset($_POST['longitude']) ? $_POST['longitude'] : null; // Keep as string for now
+$map_id_str = isset($_POST['map_id']) ? trim($_POST['map_id']) : '';
+$fa_icon_class = isset($_POST['fa_icon_class']) ? trim($_POST['fa_icon_class']) : null;
 
-// --- Basic Validation ---
+if (empty($fa_icon_class)) {
+    $fa_icon_class = null;
+}
+
+// --- Validation ---
 if (empty($name) || strlen($name) > 150) {
-    echo json_encode(['success' => false, 'message' => 'Invalid POI name.']);
-    exit;
-}
-if ($latitude === null || $longitude === null) {
-    echo json_encode(['success' => false, 'message' => 'Invalid coordinates.']);
-    exit;
-}
-if ($map_id === null || $map_id <= 0) {
-    echo json_encode(['success' => false, 'message' => 'Invalid map ID.']);
-    exit;
+    send_json_error('Invalid POI name.');
 }
 
-// Optional: Image upload handling (more complex, defer if needed)
-// For now, we'll skip image upload to keep it simple.
-// If you were to implement it:
-// $image_path = null;
-// if (isset($_FILES['image']) && $_FILES['image']['error'] == UPLOAD_ERR_OK) {
-//     $target_dir = "uploads/poi_images/"; // Create this directory and make it writable
-//     if (!is_dir($target_dir)) {
-//         mkdir($target_dir, 0755, true);
-//     }
-//     $image_filename = uniqid() . "_" . basename($_FILES["image"]["name"]);
-//     $target_file = $target_dir . $image_filename;
-//     if (move_uploaded_file($_FILES["image"]["tmp_name"], $target_file)) {
-//         $image_path = $target_file;
-//     } else {
-//         echo json_encode(['success' => false, 'message' => 'Failed to upload image.']);
-//         exit;
-//     }
-// }
+// Validate and cast numeric inputs
+if ($latitude === null || !is_numeric($latitude) || $longitude === null || !is_numeric($longitude)) {
+    send_json_error('Invalid coordinates. Must be numeric.');
+}
+$latitude_float = (float)$latitude;
+$longitude_float = (float)$longitude;
 
+if (empty($map_id_str) || !ctype_digit($map_id_str)) {
+     send_json_error('Invalid map ID. Must be a positive integer.');
+}
+$map_id_int = (int)$map_id_str;
+if ($map_id_int <= 0) {
+    send_json_error('Invalid map ID. Must be a positive integer value.');
+}
+
+
+// --- Database Connection Check (from db_config.php) ---
+if ($conn->connect_error) {
+    send_json_error('Database connection failed.', "DB Connect Error: " . $conn->connect_error, 500);
+}
 
 // --- Database Insertion ---
-// The `image_path` column in your DB should allow NULL or have a default.
-// We are setting status to 'pending'
-$sql = "INSERT INTO pois (map_id, name, latitude, longitude, status, image_path) VALUES (?, ?, ?, ?, 'pending', NULL)"; // Assuming image_path is NULL for now
+$sql = "INSERT INTO pois (map_id, name, latitude, longitude, status, image_path, fa_icon_class) VALUES (?, ?, ?, ?, 'pending', NULL, ?)";
 
 if ($stmt = $conn->prepare($sql)) {
-    $stmt->bind_param("isdd", $map_id, $name, $latitude, $longitude);
+    // Bind parameters: i for integer map_id, s for string name, d for double lat/lng, s for string fa_icon_class
+    $stmt->bind_param("isdds", $map_id_int, $name, $latitude_float, $longitude_float, $fa_icon_class);
 
     if ($stmt->execute()) {
         echo json_encode(['success' => true, 'message' => 'POI submitted successfully for review.']);
     } else {
-        // Log error: $stmt->error
-        error_log("POI Submission Error: " . $stmt->error);
-        echo json_encode(['success' => false, 'message' => 'Database error: Could not save POI. ' . $stmt->error]);
+        send_json_error('Database error: Could not save POI.', "DB Execute Error: " . $stmt->error . " (Data: map_id=$map_id_int, name=$name, fa_icon=$fa_icon_class)", 500);
     }
     $stmt->close();
 } else {
-    // Log error: $conn->error
-    error_log("POI Submission Prepare Error: " . $conn->error);
-    echo json_encode(['success' => false, 'message' => 'Database error: Could not prepare statement. ' . $conn->error]);
+    send_json_error('Database error: Could not prepare statement.', "DB Prepare Error: " . $conn->error, 500);
 }
 
 $conn->close();

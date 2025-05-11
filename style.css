@@ -405,3 +405,13 @@ body {
     background-color: #007bff; /* Or your preferred selection color */
     color: white;
 }
+
+.fontawesome-map-marker {
+    /* text-align: center; */ /* If needed for centering inside the div */
+    /* background: rgba(0,0,0,0.5); */ /* Optional background for better visibility */
+    /* border-radius: 50%; */
+}
+.fontawesome-map-marker i {
+    /* Additional styling for the <i> element if needed */
+    display: block; /* Helps with sizing and positioning */
+}

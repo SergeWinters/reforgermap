@@ -11,8 +11,8 @@ if ($map_id <= 0) {
 }
 
 $pois = [];
-// Only fetch approved POIs for the public map
-$sql = "SELECT name, latitude, longitude, image_path FROM pois WHERE map_id = ? AND status = 'approved'";
+// Fetch approved POIs for the public map, now including fa_icon_class
+$sql = "SELECT name, latitude, longitude, image_path, fa_icon_class FROM pois WHERE map_id = ? AND status = 'approved'";
 
 if ($stmt = $conn->prepare($sql)) {
     $stmt->bind_param("i", $map_id);
@@ -22,11 +22,13 @@ if ($stmt = $conn->prepare($sql)) {
             // Convert lat/lng to float, as they might come as strings from DB
             $row['latitude'] = (float)$row['latitude'];
             $row['longitude'] = (float)$row['longitude'];
+            // fa_icon_class will be null or a string, which is fine
             $pois[] = $row;
         }
         $result->free();
     } else {
         // Log error: $stmt->error;
+        error_log("Get POIs Execute Error: " . $stmt->error . " (Map ID: " . $map_id . ")");
         http_response_code(500);
         echo json_encode(['error' => 'Failed to execute POI query']);
         $stmt->close();
@@ -36,6 +38,7 @@ if ($stmt = $conn->prepare($sql)) {
     $stmt->close();
 } else {
     // Log error: $conn->error;
+    error_log("Get POIs Prepare Error: " . $conn->error);
     http_response_code(500);
     echo json_encode(['error' => 'Failed to prepare POI query']);
     $conn->close();
