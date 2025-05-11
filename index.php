@@ -4,11 +4,18 @@
     <title>Interactive Map with POI, Drawing Tools, for Arma Reforger</title>
     <meta charset="utf-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
+
     <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
+    <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/leaflet.draw/1.0.4/leaflet.draw.css" />
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/leaflet.draw/1.0.4/leaflet.draw.js"></script>
+
     <link rel="stylesheet" href="https://unpkg.com/@raruto/leaflet-gesture-handling@latest/dist/leaflet-gesture-handling.min.css" type="text/css">
     <script src="https://unpkg.com/@raruto/leaflet-gesture-handling@latest/dist/leaflet-gesture-handling.min.js"></script>
-    <script src="leaflet.rotatedMarker.js"></script>
+    
+    <script src="https://cdn.jsdelivr.net/npm/leaflet-rotatedmarker@0.2.0/leaflet.rotatedMarker.js"></script>
+	
     <!-- Meta Tags for SEO -->
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
@@ -59,12 +66,7 @@
 	<script defer src="https://stats.forgenex.com/pixel/5YKZG0nR2y0g7vKK"></script>
 	<!-- END Pixel Code -->
 
-    <!-- !!! NUEVO: Añadir cliente Socket.IO !!! -->
     <script src="https://cdn.socket.io/4.7.5/socket.io.min.js"></script>
-    <!-- Alternativa si quieres alojarlo tú mismo tras 'npm install socket.io-client': -->
-    <!-- <script src="/node_modules/socket.io-client/dist/socket.io.min.js"></script> -->
-
-    <!-- Librería para generar UUIDs (opcional pero recomendada) -->
     <script src="https://cdnjs.cloudflare.com/ajax/libs/uuid/8.3.2/uuid.min.js"></script>
 
 </head>
@@ -77,7 +79,6 @@
             <button id="exitButton" onclick="setMarkerType('exit')">Attack</button>
             <button id="respawnButton" onclick="setMarkerType('respawn')">Respawn</button>
         </div>
-        <!-- <button onclick="undoLastMarker()">Undo Last</button>  // Comentado/Eliminado -->
         <button onclick="removeAllMarkers()">Remove All</button>
         <h3>Drawing Tools</h3>
         <button onclick="enableDrawing()">Enable Drawing</button>
@@ -87,7 +88,7 @@
         <select id="mapSelector" onchange="changeMap(event)">
             <option value="maps/mapa1.png">Everon</option>
             <option value="maps/mapa2.png">Arland</option>
-            <option value="maps/mapa3.png">Everon</option> <!-- Mapa 3 es Everon? Cambiar si es otro -->
+            <option value="maps/mapa3.png">Everon</option>
         </select>
     </div>
     <div id="map"></div>
@@ -119,30 +120,35 @@
             Version 7.0 - Collaborative Mode - <a href="https://github.com/SergeWinters/reforgermap/commits/main/" target="_blank">Changelog</a>
         </div>
     </div>
-    <!-- Adding MiniMap -->
     <div id="minimapContainer">
         <button id="closeMinimap">×</button>
         <div id="minimap"></div>
     </div>
     <button id="toggleMinimap">Toggle MiniMap</button>
 
-    <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
-    <script src="https://cdnjs.cloudflare.com/ajax/libs/leaflet.draw/1.0.4/leaflet.draw.js"></script>
-
-    <!-- !!! MODIFICADO: Script principal con lógica Socket.IO !!! -->
     <script>
-        // --- Configuración Socket.IO y Sala ---
-        const SOCKET_SERVER_URL = 'http://localhost:3000'; // Para pruebas locales
-        // const SOCKET_SERVER_URL = 'https://tu-servidor-socket.com'; // Para producción (CAMBIAR CUANDO DESPLIEGUES)
+        const SOCKET_SERVER_URL = 'http://localhost:3000'; 
         let socket;
         let currentRoomId = null;
 
-        // --- Variables globales existentes y nuevas ---
+        // CAMBIO: Definir gestureHandlingOptions para evitar carga de locales y error CORS
+        const gestureHandlingOptionsConfig = {
+            text: {
+                touch: "Use two fingers to move the map", // Texto en inglés
+                scroll: "Use ctrl + scroll to zoom the map", // Texto en inglés
+                scrollMac: "Use \u2318 + scroll to zoom the map" // \u2318 es el símbolo Command ⌘
+            }
+            // Alternativamente, si quisieras forzar un idioma específico sin cargar dinámicamente:
+            // locale: 'en' 
+            // Pero definir `text` es la forma más segura de evitar cargas externas.
+        };
+
         const map = L.map('map', {
             crs: L.CRS.Simple,
             maxZoom: 3,
             minZoom: 0,
             gestureHandling: true,
+            gestureHandlingOptions: gestureHandlingOptionsConfig, // CAMBIO: Aplicar opciones aquí
             maxBounds: [[0, 0], [2048, 2048]],
             maxBoundsViscosity: 1.0
         });
@@ -154,14 +160,13 @@
             enemy: L.icon({ iconUrl: 'images/icon-enemy.png', iconSize: [32, 32] }),
             exit: L.icon({ iconUrl: 'images/icon-exit.png', iconSize: [32, 32] }),
             respawn: L.icon({ iconUrl: 'images/icon-respawn.png', iconSize: [32, 32] }),
-            loot: L.icon({ iconUrl: 'images/icon-loot.png', iconSize: [15, 15] }) // Icono para POIs
+            loot: L.icon({ iconUrl: 'images/icon-loot.png', iconSize: [15, 15] }) 
         };
-        let localMarkers = {}; // { markerId: leafletMarkerInstance, ... }
-        let localDrawings = {}; // { drawingId: leafletLayerInstance, ... }
+        let localMarkers = {}; 
+        let localDrawings = {}; 
         let currentMarkerType = null;
-        const drawnItems = new L.FeatureGroup(); // Para Leaflet.Draw
+        const drawnItems = new L.FeatureGroup(); 
 
-        // --- Funciones Auxiliares ---
         function generateUUID() {
             if (typeof uuid !== 'undefined' && typeof uuid.v4 === 'function') {
                 return uuid.v4();
@@ -179,14 +184,12 @@
         function generateRoomIdAndSetUrl() {
             const newRoomId = generateUUID().substring(0, 8);
             const newUrl = `${window.location.pathname}?session=${newRoomId}${window.location.hash}`;
-             // Cambia la URL sin recargar la página
             window.history.pushState({ path: newUrl }, '', newUrl);
             console.log("Generated new session ID and updated URL:", newRoomId);
             return newRoomId;
         }
 
-        // --- Inicialización Mapa Leaflet ---
-        map.addLayer(drawnItems); // Añadir grupo de dibujos
+        map.addLayer(drawnItems); 
 
         function loadMap(mapFile) {
             if (currentMapLayer) {
@@ -194,21 +197,18 @@
             }
             currentMapLayer = L.imageOverlay(mapFile, bounds).addTo(map);
             map.setView([1024, 1024], 1);
-            // Actualizar minimapa si existe
-             if (minimapLayer) {
+            
+            if (minimap && minimapLayer) { 
                 minimapLayer.setUrl(mapFile);
+                minimap.invalidateSize(); 
             }
         }
 
         function changeMap(event) {
             const mapFile = event.target.value;
             loadMap(mapFile);
-            // Podríamos querer notificar a otros usuarios del cambio de mapa base,
-            // pero eso añade complejidad (todos deben tener los mismos mapas).
-            // Por ahora, el cambio de mapa es local.
         }
 
-        // --- Lógica de Conexión y Sincronización Socket.IO ---
         function connectWebSocket() {
             if (socket && socket.connected) {
                 console.log("Already connected.");
@@ -223,7 +223,6 @@
             socket = io(SOCKET_SERVER_URL, {
                 reconnectionAttempts: 5,
                 reconnectionDelay: 3000,
-                // query: { roomId: currentRoomId } // Podríamos pasar roomId aquí también
             });
 
             socket.on('connect', () => {
@@ -242,10 +241,9 @@
                 alert(`Failed to connect to collaboration server: ${error.message}. Please check server status and refresh.`);
             });
 
-            // Listener para el estado inicial al unirse
             socket.on('initial_state', (state) => {
                 console.log("Received initial state:", state);
-                clearLocalMap(); // Limpiar mapa local ANTES de aplicar el estado
+                clearLocalMap(); 
 
                 if (state.markers) {
                     Object.values(state.markers).forEach(markerData => addMarkerToMap(markerData, false));
@@ -256,7 +254,6 @@
                 console.log("Initial state applied.");
             });
 
-            // Listeners para actualizaciones en tiempo real
             socket.on('marker_added', (markerData) => {
                 console.log("Remote marker added:", markerData.id);
                 addMarkerToMap(markerData, false);
@@ -283,8 +280,6 @@
             });
         }
 
-        // --- Funciones Modificadas/Nuevas para Sincronización ---
-
         function clearLocalMap() {
              console.log("Clearing local map state...");
              Object.keys(localMarkers).forEach(id => {
@@ -303,7 +298,6 @@
                 return;
             }
             if (localMarkers[markerData.id]) {
-                // console.warn(`Marker ${markerData.id} already exists locally. Skipping add.`);
                 return;
             }
             if (!customIcons[markerData.type]) {
@@ -331,7 +325,6 @@
 
         function removeMarkerFromMap(markerId, emitToServer = true) {
             if (!localMarkers[markerId]) {
-                // console.warn(`Marker ${markerId} not found locally. Skipping remove.`);
                 return;
             }
 
@@ -347,9 +340,7 @@
             }
         }
 
-        // Clic en mapa para añadir marcador
         map.on('click', e => {
-            // No añadir marcador si estamos dibujando o si no hay tipo seleccionado
             if (!currentMarkerType || (drawControl && drawControl._toolbars.draw._activeMode)) return;
 
             const markerData = {
@@ -365,10 +356,8 @@
             });
         });
 
-        // Selección de tipo de marcador
         function setMarkerType(type) {
             currentMarkerType = type;
-            // Resaltar botón seleccionado
             document.querySelectorAll('#menuItems button').forEach(button => {
                 button.classList.remove('selected');
             });
@@ -376,24 +365,21 @@
             if (selectedButton) {
                 selectedButton.classList.add('selected');
             }
-             // Desactivar modo dibujo si estuviera activo
              if (drawControl && drawControl._toolbars.edit._activeMode) {
                  drawControl._toolbars.edit.disable();
              }
               if (drawControl && drawControl._toolbars.draw._activeMode) {
                   drawControl._toolbars.draw.disable();
               }
-               disableDrawing(); // Asegura que los controles de dibujo se quiten
+               disableDrawing(); 
         }
 
-        // Botón "Remove All Markers"
         function removeAllMarkers() {
             Object.keys(localMarkers).forEach(markerId => {
                 removeMarkerFromMap(markerId, true);
             });
         }
 
-        // --- Integración con Leaflet.Draw ---
         map.on(L.Draw.Event.CREATED, function (event) {
             const layer = event.layer;
             const layerType = event.layerType;
@@ -401,10 +387,7 @@
             layer.drawingId = drawingId;
 
             localDrawings[drawingId] = layer;
-            // NO añadir directamente a drawnItems aquí si esperamos confirmación del servidor,
-            // O añadir y luego quitar si la emisión falla.
-            // Por simplicidad, añadimos localmente y emitimos.
-             drawnItems.addLayer(layer);
+            drawnItems.addLayer(layer);
 
             let drawingData = { id: drawingId, type: layerType };
 
@@ -415,9 +398,8 @@
                 drawingData.radius = layer.getRadius();
             } else {
                 console.warn("Unknown layer type created:", layerType);
-                // Si no sabemos qué es, no lo guardamos ni emitimos
-                 delete localDrawings[drawingId];
-                 drawnItems.removeLayer(layer); // Quitarlo si lo añadimos
+                delete localDrawings[drawingId];
+                drawnItems.removeLayer(layer); 
                 return;
             }
 
@@ -425,21 +407,14 @@
                 console.log(`Emitting add_drawing: ${drawingId}`);
                 socket.emit('add_drawing', drawingData);
             } else {
-                // Si no estamos conectados, el dibujo solo será local
                  console.warn("Socket not connected. Drawing is local only.");
             }
-            // Desactivar modo dibujo después de crear una forma
-             if (drawControl && drawControl._toolbars.draw._activeMode) {
-                //drawControl._toolbars.draw.disable();
-                // disableDrawing(); // Oculta el control completo
-             }
         });
 
         map.on(L.Draw.Event.DELETED, function (event) {
             event.layers.eachLayer(function (layer) {
                  if (layer.drawingId) {
                     const drawingId = layer.drawingId;
-                    // Asegurarse de que existe localmente antes de borrar y emitir
                     if(localDrawings[drawingId]){
                         delete localDrawings[drawingId];
                         if (socket && socket.connected) {
@@ -452,14 +427,10 @@
         });
 
         function clearAllDrawings() {
-            // Limpieza local inmediata (opcional, el servidor lo confirmará)
-            // clearLocalDrawings(false);
-
             if (socket && socket.connected) {
                 console.log("Emitting clear_drawings");
                 socket.emit('clear_drawings');
             } else {
-                 // Si no hay conexión, limpiar solo localmente
                  clearLocalDrawings(false);
                  alert("Not connected to server. Drawings cleared locally only.");
             }
@@ -470,7 +441,6 @@
              if (localDrawings[drawingData.id]) return;
 
              let layer;
-             // Usar un estilo por defecto o uno guardado (si lo implementamos)
              const options = { color: '#3388ff', weight: 3 };
 
              try {
@@ -482,10 +452,7 @@
                         layer = L.polygon(drawingData.latlngs, options);
                         break;
                     case 'rectangle':
-                        // L.rectangle necesita [[southWestLat, southWestLng], [northEastLat, northEastLng]]
-                        // Asegurémonos que latlngs tenga ese formato o L.latLngBounds
                          if (Array.isArray(drawingData.latlngs) && drawingData.latlngs.length >= 2) {
-                             // Podría venir como array de LatLngs o como Bounds. Intentemos crear bounds.
                              const bounds = L.latLngBounds(drawingData.latlngs);
                               layer = L.rectangle(bounds, options);
                          } else {
@@ -494,7 +461,6 @@
                          }
                         break;
                     case 'circle':
-                        // L.circle necesita LatLng y radio
                          if (drawingData.latlng && drawingData.radius) {
                             layer = L.circle(drawingData.latlng, { ...options, radius: drawingData.radius });
                          } else {
@@ -509,9 +475,8 @@
             } catch (error) {
                 console.error(`Error creating Leaflet layer for drawing ${drawingData.id} (type: ${drawingData.type}):`, error);
                 console.error("Drawing data:", drawingData);
-                return; // No añadir si falla la creación
+                return; 
             }
-
 
             layer.drawingId = drawingData.id;
             localDrawings[drawingData.id] = layer;
@@ -532,15 +497,13 @@
              localDrawings = {};
         }
 
-
-        // --- Controles de Dibujo (L.Draw) ---
         const drawControl = new L.Control.Draw({
             draw: {
                 polyline: { shapeOptions: { color: '#f357a1', weight: 4 } },
                 polygon: { shapeOptions: { color: '#f357a1', weight: 4 } },
                 rectangle: { shapeOptions: { color: '#f357a1', weight: 4 } },
                 circle: { shapeOptions: { color: '#f357a1', weight: 4 } },
-                marker: false // No usar el marcador de L.Draw
+                marker: false 
             },
             edit: {
                 featureGroup: drawnItems,
@@ -550,19 +513,16 @@
 
          function enableDrawing() {
              map.addControl(drawControl);
-             // Deseleccionar tipo de marcador si estaba activo
              currentMarkerType = null;
               document.querySelectorAll('#menuItems button').forEach(button => {
                  button.classList.remove('selected');
              });
          }
          function disableDrawing() {
-             // Desactivar herramientas activas antes de quitar el control
              if (drawControl._toolbars.draw && drawControl._toolbars.draw._activeMode) {
                  drawControl._toolbars.draw._modes[drawControl._toolbars.draw._activeMode.handler._type].handler.disable();
              }
               if (drawControl._toolbars.edit && drawControl._toolbars.edit._activeMode) {
-                  // Puede haber modos de edición o borrado
                    if (drawControl._toolbars.edit._modes.edit.handler.enabled()) {
                        drawControl._toolbars.edit._modes.edit.handler.disable();
                    }
@@ -573,7 +533,6 @@
              map.removeControl(drawControl);
          }
 
-        // --- POI List (Estático, sin cambios) ---
         const poiList = [
 			{ name: "Saint Philippe (HQ-N)", coords: [1755.67, 666.50], image: "images/saint_philippe.jpg" },
 			{ name: "Saint-Pierre (HQ-S)", coords: [257.16, 1619.62], image: "images/saint_pierre.jpg" },
@@ -592,8 +551,6 @@
 			`, { maxWidth: "auto", className: "custom-popup" });
 		});
 
-
-        // --- Rotación, Brújula, Sidebar, Modales (Sin cambios) ---
         const compass = document.getElementById('compass');
         compass.addEventListener('click', () => { rotateMap(90); });
         let currentAngle = 0;
@@ -613,76 +570,71 @@
         function openHelp() { document.getElementById('help-modal').classList.add('visible'); }
         function closeHelp() { document.getElementById('help-modal').classList.remove('visible'); }
 
-
-        // --- MiniMap ---
         const minimapContainer = document.getElementById('minimapContainer');
         const toggleMinimapButton = document.getElementById('toggleMinimap');
         const closeMinimapButton = document.getElementById('closeMinimap');
-        let minimap = null; // Declarar fuera para acceso global
-        let minimapLayer = null; // Declarar fuera para acceso global
+        let minimap = null; 
+        let minimapLayer = null; 
+        let minimapViewRect = null; 
 
         toggleMinimapButton.addEventListener('click', () => {
             const isVisible = minimapContainer.style.display !== 'none';
             minimapContainer.style.display = isVisible ? 'none' : 'block';
             if (!isVisible && minimap) {
-                minimap.invalidateSize(); // Ajustar tamaño si se muestra
+                minimap.invalidateSize(); 
             }
         });
         closeMinimapButton.addEventListener('click', () => { minimapContainer.style.display = 'none'; });
 
-        // Inicializar minimapa
-         try {
-             const minimapBounds = [[0, 0], [2048, 2048]]; // Mismas que el mapa principal
-             minimap = L.map('minimap', {
-                crs: L.CRS.Simple,
-                zoomControl: false,
-                attributionControl: false,
-                maxBounds: minimapBounds,
-                maxBoundsViscosity: 1.0,
-                gestureHandling: true, // Permitir interacción táctil
-                dragging: false, // Deshabilitar arrastre directo del minimapa base
-                scrollWheelZoom: false, // Deshabilitar zoom con rueda en minimapa
-                doubleClickZoom: false, // Deshabilitar doble clic zoom
-            }).setView([1024, 1024], -2); // Zoom más alejado (-2 o -3)
+        function initializeMinimap() {
+            try {
+                const minimapBounds = [[0, 0], [2048, 2048]]; 
+                minimap = L.map('minimap', {
+                    crs: L.CRS.Simple,
+                    zoomControl: false,
+                    attributionControl: false,
+                    maxBounds: minimapBounds,
+                    maxBoundsViscosity: 1.0,
+                    gestureHandling: true, 
+                    gestureHandlingOptions: gestureHandlingOptionsConfig, // CAMBIO: Aplicar opciones aquí también para el minimapa
+                    dragging: false, 
+                    scrollWheelZoom: false, 
+                    doubleClickZoom: false, 
+                }).setView([1024, 1024], -2); 
 
-            // Usar el mapa inicial seleccionado
-            const initialMapFile = document.getElementById('mapSelector').value || 'maps/mapa1.png';
-            minimapLayer = L.imageOverlay(initialMapFile, minimapBounds).addTo(minimap);
+                const initialMapFile = document.getElementById('mapSelector').value || 'maps/mapa1.png';
+                minimapLayer = L.imageOverlay(initialMapFile, minimapBounds).addTo(minimap);
 
-            // Crear un rectángulo que represente la vista actual del mapa principal
-            const viewRect = L.rectangle(map.getBounds(), { color: "#ff7800", weight: 1, interactive: false }).addTo(minimap);
+                minimapViewRect = L.rectangle(map.getBounds(), { color: "#ff7800", weight: 1, interactive: false }).addTo(minimap);
 
-            // Sincronizar rectángulo del minimapa con vista del mapa principal
-            map.on('move zoom', () => {
-                viewRect.setBounds(map.getBounds());
-                 // Centrar minimapa aproximadamente en el centro del mapa principal, pero mantener zoom alejado
-                 minimap.setView(map.getCenter(), minimap.getZoom(), { animate: false });
-            });
+                map.on('move zoom', () => {
+                    if (minimapViewRect) { 
+                        minimapViewRect.setBounds(map.getBounds());
+                    }
+                    minimap.setView(map.getCenter(), minimap.getZoom(), { animate: false });
+                });
 
-            // Permitir hacer clic en minimapa para mover el mapa principal
-            minimap.on('click', (e) => {
-                 map.setView(e.latlng, map.getZoom());
-            });
+                minimap.on('click', (e) => {
+                    map.setView(e.latlng, map.getZoom());
+                });
 
-         } catch (error) {
-            console.error("Error initializing minimap:", error);
-            // Ocultar controles del minimapa si falla la inicialización
-            if(toggleMinimapButton) toggleMinimapButton.style.display = 'none';
-             if(minimapContainer) minimapContainer.style.display = 'none';
-         }
+            } catch (error) {
+                console.error("Error initializing minimap:", error);
+                if(toggleMinimapButton) toggleMinimapButton.style.display = 'none';
+                if(minimapContainer) minimapContainer.style.display = 'none';
+            }
+        }
 
-
-        // --- Inicio de la Aplicación ---
         document.addEventListener('DOMContentLoaded', () => {
             const initialMapFile = document.getElementById('mapSelector').value || 'maps/mapa1.png';
             loadMap(initialMapFile);
+            initializeMinimap(); 
 
             currentRoomId = getRoomIdFromUrl();
             if (!currentRoomId) {
-                 // Opción: Generar ID y actualizar URL sin recargar
                  currentRoomId = generateRoomIdAndSetUrl();
                  alert(`Generated a new collaboration session ID: ${currentRoomId}. Share this page's URL to collaborate!`);
-                 connectWebSocket(); // Conectar con el nuevo ID
+                 connectWebSocket(); 
             } else {
                  console.log(`Joining existing session: ${currentRoomId}`);
                  connectWebSocket();
@@ -692,7 +644,7 @@
             map.on('zoomend', () => { zoomInfo.textContent = map.getZoom(); });
             map.on('mousemove', (e) => {
                  const { lat, lng } = e.latlng;
-                 mouseCoordinates.textContent = `Lat: ${lat.toFixed(1)}, Lng: ${lng.toFixed(1)}`; // Menos decimales
+                 mouseCoordinates.textContent = `Lat: ${lat.toFixed(1)}, Lng: ${lng.toFixed(1)}`; 
             });
             sidebar.classList.add('hidden');
         });
