@@ -113,13 +113,14 @@
                </div>
            </div>
            <hr>
-           <div id="sessionJoinSection">
-               <label for="sessionKeyInput">Enter Session Key to Join:</label>
-               <div class="form-row">
-                   <input type="text" id="sessionKeyInput" placeholder="Paste session key here">
-                   <button id="joinSessionButton" type="button">Join</button>
-               </div>
-           </div>
+			<div id="sessionJoinSection">
+				<label for="sessionKeyInput">Enter Session Key to Join:</label>
+				<div class="form-row">
+					<input type="text" id="sessionKeyInput" placeholder="Paste session key here">
+					<button id="joinSessionButton" type="button">Join</button>
+				</div>
+			</div>
+			<p>To join an existing session, simply paste the <strong>session key</strong> (shared by the host) into the field above and click <strong>"Join"</strong>. If you want to <strong>create a new session</strong>, go to the "Create Session" section, select a map, and generate a unique key to invite others. Once connected, all participants can collaborate in real-time.</p>
            <div id="sessionInfo" style="margin-top: 20px; display: none; text-align:center;">
                <p><strong>Active Session:</strong> <span id="activeSessionKey" style="font-weight:bold; color:lightgreen;"></span></p>
                <p><strong>Map:</strong> <span id="activeSessionMapName" style="font-weight:bold;"></span></p>
