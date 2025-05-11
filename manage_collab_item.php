@@ -3,17 +3,21 @@ require_once 'db_config.php';
 header('Content-Type: application/json');
 
 $session_key = isset($_POST['session_key']) ? trim($_POST['session_key']) : '';
-$client_id = isset($_POST['client_id']) ? trim($_POST['client_id']) : ''; // Client's unique identifier
-$item_type = isset($_POST['item_type']) ? $_POST['item_type'] : ''; // 'marker' or 'drawing'
-$action = isset($_POST['action']) ? $_POST['action'] : 'add'; // 'add', 'delete' (future: 'update')
+$client_id = isset($_POST['client_id']) ? trim($_POST['client_id']) : '';
+$item_type = isset($_POST['item_type']) ? $_POST['item_type'] : '';
+$action = isset($_POST['action']) ? $_POST['action'] : 'add';
 
 if (empty($session_key) || empty($client_id) || empty($item_type)) {
     echo json_encode(['success' => false, 'message' => 'Missing required parameters (session_key, client_id, item_type).']);
     exit;
 }
 
-// Get session_id from session_key
 $session_stmt = $conn->prepare("SELECT id FROM collaboration_sessions WHERE session_key = ?");
+if (!$session_stmt) {
+    error_log("Prepare failed (session select): " . $conn->error);
+    echo json_encode(['success' => false, 'message' => 'Server error preparing session query.']);
+    exit;
+}
 $session_stmt->bind_param("s", $session_key);
 $session_stmt->execute();
 $session_result = $session_stmt->get_result();
@@ -30,14 +34,28 @@ $response = ['success' => false, 'message' => 'Invalid action or item type.'];
 
 if ($action === 'add') {
     if ($item_type === 'marker') {
-        $marker_type_name = isset($_POST['marker_type_name']) ? $_POST['marker_type_name'] : '';
+        $marker_type_name = isset($_POST['marker_type_name']) ? $_POST['marker_type_name'] : 'default_marker'; // e.g., 'enemy', 'custom_collab'
         $latitude = isset($_POST['latitude']) ? (float)$_POST['latitude'] : null;
         $longitude = isset($_POST['longitude']) ? (float)$_POST['longitude'] : null;
+        
+        // New fields for custom collaborative markers
+        $fa_icon_class = isset($_POST['fa_icon_class']) ? trim($_POST['fa_icon_class']) : null;
+        $marker_color = isset($_POST['marker_color']) ? trim($_POST['marker_color']) : '#FFFFFF'; // Default to white
+        $marker_text = isset($_POST['marker_text']) ? trim($_POST['marker_text']) : null;
+
+        if (empty($fa_icon_class)) $fa_icon_class = null;
+        if (empty($marker_text)) $marker_text = null;
+        // Validate color format (basic hex)
+        if (!preg_match('/^#[a-f0-9]{6}$/i', $marker_color)) {
+            $marker_color = '#FFFFFF'; // Default if invalid
+        }
+
 
         if (!empty($marker_type_name) && $latitude !== null && $longitude !== null) {
-            $sql = "INSERT INTO collaboration_markers (session_id, client_id, marker_type, latitude, longitude) VALUES (?, ?, ?, ?, ?)";
+            $sql = "INSERT INTO collaboration_markers (session_id, client_id, marker_type, latitude, longitude, fa_icon_class, marker_color, marker_text) VALUES (?, ?, ?, ?, ?, ?, ?, ?)";
             if ($stmt = $conn->prepare($sql)) {
-                $stmt->bind_param("issdd", $session_id, $client_id, $marker_type_name, $latitude, $longitude);
+                // Types: i(session_id), s(client_id), s(marker_type), d(lat), d(lng), s(fa_icon), s(color), s(text)
+                $stmt->bind_param("issddsss", $session_id, $client_id, $marker_type_name, $latitude, $longitude, $fa_icon_class, $marker_color, $marker_text);
                 if ($stmt->execute()) {
                     $response = ['success' => true, 'item_id' => $stmt->insert_id, 'message' => 'Marker added.'];
                 } else {
@@ -50,13 +68,13 @@ if ($action === 'add') {
                  $response['message'] = 'Server error adding marker.';
             }
         } else {
-            $response['message'] = 'Missing marker data.';
+            $response['message'] = 'Missing marker data (type, lat, lng).';
         }
     } elseif ($item_type === 'drawing') {
-        $layer_type = isset($_POST['layer_type']) ? $_POST['layer_type'] : ''; // e.g. 'polyline'
+        // ... (drawing logic remains the same) ...
+        $layer_type = isset($_POST['layer_type']) ? $_POST['layer_type'] : '';
         $geojson_data = isset($_POST['geojson_data']) ? $_POST['geojson_data'] : '';
         $client_layer_id = isset($_POST['client_layer_id']) ? $_POST['client_layer_id'] : null;
-
 
         if (!empty($layer_type) && !empty($geojson_data)) {
             $sql = "INSERT INTO collaboration_drawings (session_id, client_id, layer_type, geojson_data, client_layer_id) VALUES (?, ?, ?, ?, ?)";
@@ -85,8 +103,6 @@ if ($action === 'add') {
         elseif ($item_type === 'drawing') $table_name = 'collaboration_drawings';
 
         if (!empty($table_name)) {
-            // Optionally, verify client_id owns the item before deleting, or allow any client in session to delete
-            // For simplicity, allow any client in session to delete for now.
             $sql = "DELETE FROM $table_name WHERE id = ? AND session_id = ?";
             if ($stmt = $conn->prepare($sql)) {
                 $stmt->bind_param("ii", $db_item_id, $session_id);
@@ -112,5 +128,5 @@ if ($action === 'add') {
 }
 
 echo json_encode($response);
-$conn->close();
+if ($conn) $conn->close(); // Ensure $conn is checked before closing
 ?>

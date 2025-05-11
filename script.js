@@ -1,4 +1,3 @@
-// Wait for the DOM to be fully loaded before executing scripts
 document.addEventListener('DOMContentLoaded', () => {
 
     window.mapElement = document.getElementById('map');
@@ -15,9 +14,9 @@ document.addEventListener('DOMContentLoaded', () => {
     const bounds = [[0, 0], [2048, 2048]];
 
     let poiMarkersLayer = L.featureGroup().addTo(window.map);
-    let tempPoiSubmissionMarker = null;
+    let tempPoiSubmissionMarker = null; // For POI submission
+    let tempCustomCollabMarkerPlacement = null; // For custom collab marker placement
 
-    // --- START OF COLLABORATION VARIABLES ---
     let currentSessionKey = null;
     let currentSessionMapId = null;
     let currentSessionMapName = '';
@@ -35,7 +34,6 @@ document.addEventListener('DOMContentLoaded', () => {
     const collabMarkersLayer = L.featureGroup().addTo(window.map);
     const collabDrawingsLayer = L.featureGroup().addTo(window.map);
     const renderedCollabItemDBIds = { markers: new Set(), drawings: new Set() };
-    // --- END OF COLLABORATION VARIABLES ---
 
     function generateUUIDv4() {
         return 'xxxxxxxx-xxxx-4xxx-yxxx-xxxxxxxxxxxx'.replace(/[xy]/g, function(c) {
@@ -45,9 +43,7 @@ document.addEventListener('DOMContentLoaded', () => {
     }
 
     function loadMapImage(mapImagePath) {
-        if (currentMapLayer) {
-            window.map.removeLayer(currentMapLayer);
-        }
+        if (currentMapLayer) window.map.removeLayer(currentMapLayer);
         currentMapLayer = L.imageOverlay(mapImagePath, bounds).addTo(window.map);
         window.map.setView([1024, 1024], 1);
     }
@@ -57,511 +53,197 @@ document.addEventListener('DOMContentLoaded', () => {
         if (!mapId) return;
         try {
             const response = await fetch(`get_pois.php?map_id=${mapId}`);
-            if (!response.ok) throw new Error(`Failed to fetch POIs: ${response.statusText}`);
+            if (!response.ok) throw new Error(`POIs fetch failed: ${response.statusText}`);
             const pois = await response.json();
             pois.forEach(poi => {
-                let poiIconInstance; // Use 'Instance' to avoid conflict with customIcons.loot
+                let poiIconInstance;
                 if (poi.fa_icon_class) {
-                    poiIconInstance = L.divIcon({
-                        html: `<i class="${poi.fa_icon_class}" style="font-size: 24px; color: #FFF; line-height: 1;"></i>`, // Adjust style, added line-height
-                        className: 'fontawesome-map-marker',
-                        iconSize: [24, 24],
-                        iconAnchor: [12, 12], // Centered anchor for a square icon
-                        popupAnchor: [0, -12]
-                    });
-                } else {
-                    poiIconInstance = customIcons.loot; // Fallback to your existing image icon
-                }
-
+                    poiIconInstance = L.divIcon({ html: `<i class="${poi.fa_icon_class}" style="font-size: 24px; color: #FFF; line-height: 1;"></i>`, className: 'fontawesome-map-marker', iconSize: [24, 24], iconAnchor: [12, 12], popupAnchor: [0, -12] });
+                } else { poiIconInstance = customIcons.loot; }
                 const marker = L.marker([poi.latitude, poi.longitude], { icon: poiIconInstance }).addTo(poiMarkersLayer);
-                
-                const popupContent = (poi.image_path ?
-                    `<img src="${poi.image_path}" alt="${poi.name}" style="width: 400px; height: auto; display:block; margin-bottom:5px;">` : '') +
-                    `<strong>${poi.name}</strong>` +
-                    (poi.fa_icon_class ? `<br><small>Icon: <i class="${poi.fa_icon_class}"></i> <span style="font-family:monospace;">${poi.fa_icon_class}</span></small>` : '');
-                
+                const popupContent = (poi.image_path ? `<img src="${poi.image_path}" alt="${poi.name}" style="width:400px;height:auto;display:block;margin-bottom:5px;">`:'') + `<strong>${poi.name}</strong>` + (poi.fa_icon_class ? `<br><small>Icon: <i class="${poi.fa_icon_class}"></i> <span style="font-family:monospace;">${poi.fa_icon_class}</span></small>`:'');
                 marker.bindPopup(popupContent, { maxWidth: "auto", className: "custom-popup" });
             });
-        } catch (error) {
-            console.error("Error loading POIs:", error);
-        }
+        } catch (error) { console.error("Error loading POIs:", error); }
     }
     
     window.handleMapChange = async function (event) {
-        const selectedOption = event.target.selectedOptions[0];
-        const mapImagePath = selectedOption.value;
-        const newMapId = parseInt(selectedOption.dataset.mapId);
-
-        if (currentSessionKey && newMapId !== currentSessionMapId) {
-            alert("You are in an active collaboration session for a different map. Please leave the current session to change maps.");
-             for(let i=0; i<event.target.options.length; i++){
-                if(parseInt(event.target.options[i].dataset.mapId) === currentMapId){
-                    event.target.selectedIndex = i;
-                    break;
-                }
-            }
-            return;
-        }
-        currentMapId = newMapId; 
-        loadMapImage(mapImagePath);
-        await loadPoisForMap(currentMapId);
-
-        if (typeof window.minimapLayer !== 'undefined' && window.minimapLayer) {
-             window.minimapLayer.setUrl(mapImagePath);
-        }
+        const selOpt = event.target.selectedOptions[0]; const imgPath = selOpt.value; const newMapId = parseInt(selOpt.dataset.mapId);
+        if (currentSessionKey && newMapId !== currentSessionMapId) { alert("In active session on different map. Leave session to change maps."); $(event.target).val($(event.target).find(`option[data-map-id="${currentMapId}"]`).val()); return; }
+        currentMapId = newMapId; loadMapImage(imgPath); await loadPoisForMap(currentMapId);
+        if (window.minimapLayer) window.minimapLayer.setUrl(imgPath);
     }
     
     async function initializeMapSelector() {
-        const mapSelector = document.getElementById('mapSelector');
-        const sessionMapSel = document.getElementById('sessionMapSelector');
-        if (!mapSelector || !sessionMapSel) {
-            console.error("Map selector elements not found!");
-            return;
-        }
+        const mapSel = $('#mapSelector'), sessMapSel = $('#sessionMapSelector'); if (!mapSel.length || !sessMapSel.length) { console.error("Map selectors not found!"); return; }
         try {
-            const response = await fetch('get_maps.php');
-            if (!response.ok) throw new Error(`Failed to fetch maps list: ${response.statusText}`);
-            const mapsData = await response.json();
-
-            if (mapsData.length === 0) {
-                alert("No maps available.");
-                mapSelector.innerHTML = sessionMapSel.innerHTML = "<option>No maps configured</option>";
-                mapSelector.disabled = sessionMapSel.disabled = true;
-                return;
+            const resp = await fetch('get_maps.php'); if (!resp.ok) throw new Error(`Maps fetch failed: ${resp.statusText}`);
+            const mapsData = await resp.json();
+            if (mapsData.length === 0) { alert("No maps."); mapSel.html("<option>No maps</option>").prop('disabled', true); sessMapSel.html("<option>No maps</option>").prop('disabled', true); return; }
+            mapsData.forEach(mD => { const opt = `<option value="${mD.image_path}" data-map-id="${mD.id}">${mD.name}</option>`; mapSel.append(opt); sessMapSel.append(opt); });
+            if (mapSel.find('option').length > 0) {
+                mapSel.prop('selectedIndex', 0); sessMapSel.prop('selectedIndex', 0); const firstOpt = mapSel.find('option:selected');
+                currentMapId = parseInt(firstOpt.data('mapId')); loadMapImage(firstOpt.val()); await loadPoisForMap(currentMapId);
+                if (window.minimap && window.minimapLayer) { window.minimapLayer.setUrl(firstOpt.val()); window.minimap.setView([1024,1024], -1); window.map.fire('move'); }
             }
-
-            mapsData.forEach(mapData => {
-                const option = document.createElement('option');
-                option.value = mapData.image_path;
-                option.textContent = mapData.name;
-                option.dataset.mapId = mapData.id;
-                mapSelector.appendChild(option.cloneNode(true));
-                sessionMapSel.appendChild(option);
-            });
-
-            if (mapSelector.options.length > 0) {
-                mapSelector.selectedIndex = 0;
-                sessionMapSel.selectedIndex = 0;
-                const firstMapOption = mapSelector.options[0];
-                currentMapId = parseInt(firstMapOption.dataset.mapId);
-                loadMapImage(firstMapOption.value);
-                await loadPoisForMap(currentMapId);
-
-                if (typeof window.minimap !== 'undefined' && typeof window.minimapLayer !== 'undefined') {
-                    window.minimapLayer.setUrl(firstMapOption.value);
-                    window.minimap.setView([1024,1024], -1);
-                    window.map.fire('move');
-                }
-            }
-        } catch (error) {
-            console.error("Error initializing map selector:", error);
-            alert("A critical error occurred while loading map data.");
-        }
+        } catch (err) { console.error("Init map selector err:", err); alert("Critical error loading map data."); }
     }
 
-    const zoomInfo = document.getElementById('zoomLevel');
-    window.map.on('zoomend', () => { zoomInfo.textContent = window.map.getZoom(); });
-    zoomInfo.textContent = window.map.getZoom();
+    $('#zoomLevel').text(window.map.getZoom()); window.map.on('zoomend', () => { $('#zoomLevel').text(window.map.getZoom()); });
+    window.map.on('mousemove', (e) => { $('#mouseCoordinates').text(`Y: ${e.latlng.lat.toFixed(2)}, X: ${e.latlng.lng.toFixed(2)}`); });
 
-    const mouseCoordinates = document.getElementById('mouseCoordinates');
-    window.map.on('mousemove', (e) => {
-        const { lat, lng } = e.latlng;
-        mouseCoordinates.textContent = `Y: ${lat.toFixed(2)}, X: ${lng.toFixed(2)}`;
-    });
-
-    const customIcons = { // These are image-based icons for tactical markers
-        enemy: L.icon({ iconUrl: 'images/icon-enemy.png', iconSize: [32, 32], iconAnchor: [16, 16] }),
-        exit: L.icon({ iconUrl: 'images/icon-exit.png', iconSize: [32, 32], iconAnchor: [16, 16] }),
-        respawn: L.icon({ iconUrl: 'images/icon-respawn.png', iconSize: [32, 32], iconAnchor: [16, 16] }),
-        loot: L.icon({ iconUrl: 'images/icon-loot.png', iconSize: [24, 24], iconAnchor: [12, 12] }), // Fallback for POIs without FA icon
-        submitPoiTemp: L.icon({ iconUrl: 'images/icon-poi-submit-temp.png', iconSize: [32, 32], iconAnchor: [16, 32] })
+    const customIcons = { // Tactical markers (image-based)
+        enemy: L.icon({iconUrl:'images/icon-enemy.png',iconSize:[32,32],iconAnchor:[16,16]}), exit: L.icon({iconUrl:'images/icon-exit.png',iconSize:[32,32],iconAnchor:[16,16]}),
+        loot: L.icon({iconUrl:'images/icon-loot.png',iconSize:[24,24],iconAnchor:[12,12]}), submitPoiTemp: L.icon({iconUrl:'images/icon-poi-submit-temp.png',iconSize:[32,32],iconAnchor:[16,32]})
     };
-
-    let userMarkers = []; 
-    let currentMarkerType = null;
+    let userMarkers = []; let currentMarkerType = null;
 
     window.setMarkerType = function (type) {
-        if (currentMarkerType === 'submitPoi' && type !== 'submitPoi' && tempPoiSubmissionMarker) {
-            window.map.removeLayer(tempPoiSubmissionMarker);
-            tempPoiSubmissionMarker = null;
-        }
-        currentMarkerType = type;
-        document.querySelectorAll('#sidebar button').forEach(button => button.classList.remove('selected'));
-        let selectedButton;
-        if (type === 'submitPoi') selectedButton = document.getElementById('sendPoiButton');
-        else if (type) selectedButton = document.getElementById(`${type}Button`);
-        if (selectedButton) selectedButton.classList.add('selected');
+        if (currentMarkerType === 'submitPoi' && type !== 'submitPoi' && tempPoiSubmissionMarker) { window.map.removeLayer(tempPoiSubmissionMarker); tempPoiSubmissionMarker = null; }
+        if (currentMarkerType === 'customCollab' && type !== 'customCollab' && tempCustomCollabMarkerPlacement) { window.map.removeLayer(tempCustomCollabMarkerPlacement); tempCustomCollabMarkerPlacement = null; }
+
+        currentMarkerType = type; $('#sidebar button').removeClass('selected'); let selBtn;
+        if (type === 'submitPoi') selBtn = $('#sendPoiButton');
+        else if (type === 'customCollab') selBtn = $('#customCollabMarkerButton');
+        else if (type) selBtn = $(`#${type}Button`);
+        if (selBtn && selBtn.length) selBtn.addClass('selected');
     }
 
     window.map.on('click', e => {
         if (window.map.drawControl && window.map.drawControl._toolbars.draw._activeMode) return;
-        if (e.originalEvent.target.closest('.leaflet-popup-pane')) return;
-        if (e.originalEvent.target.closest('.leaflet-control')) return;
-        if (e.originalEvent.target.closest('.iconpicker-popover')) return; // Prevent map click when icon picker is open
+        if ($(e.originalEvent.target).closest('.leaflet-popup-pane, .leaflet-control, .iconpicker-popover, .modal-content').length) return; // Ignore clicks inside these elements
 
-        const lat = e.latlng.lat;
-        const lng = e.latlng.lng;
-
+        const lat = e.latlng.lat, lng = e.latlng.lng;
         if (currentMarkerType === 'submitPoi') {
-            if (!currentMapId) { alert("Please select a map first."); window.setMarkerType(null); return; }
+            if (!currentMapId) { alert("Select map."); window.setMarkerType(null); return; }
             if (tempPoiSubmissionMarker) window.map.removeLayer(tempPoiSubmissionMarker);
-            tempPoiSubmissionMarker = L.marker([lat, lng], { icon: customIcons.submitPoiTemp, draggable: true }).addTo(window.map);
-            tempPoiSubmissionMarker.on('dragend', function(event) {
-                const upLatLng = event.target.getLatLng();
-                document.getElementById('poiLat').value = upLatLng.lat.toFixed(6);
-                document.getElementById('poiLng').value = upLatLng.lng.toFixed(6);
-                document.getElementById('poiCoordsPreview').textContent = `Lat: ${upLatLng.lat.toFixed(2)}, Lng: ${upLatLng.lng.toFixed(2)}`;
-            });
+            tempPoiSubmissionMarker = L.marker([lat,lng], {icon:customIcons.submitPoiTemp, draggable:true}).addTo(window.map);
+            tempPoiSubmissionMarker.on('dragend', function(ev){ const ll = ev.target.getLatLng(); $('#poiLat').val(ll.lat.toFixed(6)); $('#poiLng').val(ll.lng.toFixed(6)); $('#poiCoordsPreview').text(`Lat: ${ll.lat.toFixed(2)}, Lng: ${ll.lng.toFixed(2)}`); });
             openPoiSubmissionModal(lat, lng, currentMapId);
-        } else if (currentMarkerType) {
-            if (currentSessionKey) { 
-                sendCollabData('marker', 'add', {
-                    marker_type_name: currentMarkerType, // This is for tactical markers, not POIs
-                    latitude: lat,
-                    longitude: lng
-                });
-            } else { 
-                const marker = L.marker([lat, lng], { icon: customIcons[currentMarkerType] }).addTo(window.map);
-                marker.on('click', function (ev) {
-                    L.DomEvent.stopPropagation(ev);
-                    window.map.removeLayer(this);
-                    userMarkers = userMarkers.filter(m => m !== this);
-                });
-                userMarkers.push(marker);
-            }
+        } else if (currentMarkerType === 'customCollab') {
+            if (!currentSessionKey) { alert("You must be in a collaboration session to place custom collab markers."); window.setMarkerType(null); return; }
+            if (tempCustomCollabMarkerPlacement) window.map.removeLayer(tempCustomCollabMarkerPlacement); // Remove previous temp marker
+            // Place a temporary, non-interactive marker
+            tempCustomCollabMarkerPlacement = L.marker([lat, lng], { icon: L.divIcon({className:'temp-placement-dot', html:'.', iconSize:[6,6], iconAnchor:[3,3]}) }).addTo(window.map);
+            openCustomCollabMarkerModal(lat, lng);
+        } else if (currentMarkerType) { // Standard tactical markers
+            if (currentSessionKey) { sendCollabData('marker', 'add', { marker_type_name: currentMarkerType, latitude: lat, longitude: lng }); }
+            else { const m = L.marker([lat,lng], {icon:customIcons[currentMarkerType]}).addTo(window.map); m.on('click', function(ev){ L.DomEvent.stopPropagation(ev); window.map.removeLayer(this); userMarkers = userMarkers.filter(um => um !== this); }); userMarkers.push(m); }
             window.setMarkerType(null);
         }
     });
     
-    function openPoiSubmissionModal(lat, lng, mapId) {
-        document.getElementById('poiLat').value = lat.toFixed(6);
-        document.getElementById('poiLng').value = lng.toFixed(6);
-        document.getElementById('poiMapId').value = mapId;
-        document.getElementById('poiName').value = '';
-        document.getElementById('poiSubmitFaIconInput').value = ''; // Clear icon input
-        $('#poi_submit_icon_preview').html(''); // Clear icon preview
-        document.getElementById('poiCoordsPreview').textContent = `Lat: ${lat.toFixed(2)}, Lng: ${lng.toFixed(2)}`;
-        document.getElementById('poiSubmissionMessage').textContent = '';
-        document.getElementById('poiSubmissionModal').classList.remove('hidden');
-        document.getElementById('poiSubmissionModal').classList.add('visible');
+    function openPoiSubmissionModal(lat,lng,mapId){ $('#poiLat').val(lat.toFixed(6)); $('#poiLng').val(lng.toFixed(6)); $('#poiMapId').val(mapId); $('#poiName').val(''); $('#poiSubmitFaIconInput').val(''); $('#poi_submit_icon_preview').html(''); $('#poiCoordsPreview').text(`Lat: ${lat.toFixed(2)}, Lng: ${lng.toFixed(2)}`); $('#poiSubmissionMessage').text(''); $('#poiSubmissionModal').removeClass('hidden').addClass('visible'); }
+    window.closePoiSubmissionModal = function(){ $('#poiSubmissionModal').removeClass('visible').addClass('hidden'); if(tempPoiSubmissionMarker){window.map.removeLayer(tempPoiSubmissionMarker);tempPoiSubmissionMarker=null;} if(currentMarkerType==='submitPoi')window.setMarkerType(null); }
+    $('#poiForm').on('submit', async function(ev){ ev.preventDefault(); const fd=new FormData(this); const msgDiv=$('#poiSubmissionMessage'); msgDiv.text('Submitting...').css('color','#f0f0f0'); try { const r=await fetch('submit_poi.php',{method:'POST',body:fd}); const d=await r.json(); if(r.ok && d.success){msgDiv.text('POI submitted!').css('color','lightgreen');setTimeout(window.closePoiSubmissionModal,2500);}else{msgDiv.text(`Error: ${d.message||'Failed.'}`).css('color','salmon');}}catch(err){console.error('POI Submit err:',err);msgDiv.text('Network error.').css('color','salmon');}});
+    if($('#poi_submit_icon_picker_button').length){ $('#poi_submit_icon_picker_button').iconpicker({iconset:'fontawesome6',icon:'fas fa-map-marker-alt',rows:5,cols:10,placement:'bottom'}).on('change',function(e){if(e.icon){$('#poiSubmitFaIconInput').val(e.icon);$('#poi_submit_icon_preview').html(`<i class="${e.icon}"></i>`);}else{$('#poiSubmitFaIconInput').val('');$('#poi_submit_icon_preview').html('');}}); }
+
+    // --- Custom Collab Marker Modal Logic ---
+    function openCustomCollabMarkerModal(lat, lng) {
+        $('#customMarkerLat').val(lat.toFixed(6));
+        $('#customMarkerLng').val(lng.toFixed(6));
+        $('#customMarkerCoordsPreview').text(`Lat: ${lat.toFixed(2)}, Lng: ${lng.toFixed(2)}`);
+        // Reset form fields (optional, good practice)
+        $('#customMarkerFaIconInput').val('fas fa-map-pin'); // Default icon
+        $('#custom_marker_icon_preview').html('<i class="fas fa-map-pin"></i>');
+        $('#customMarkerColorInput').val('#FFFFFF'); // Default color
+        $('#customMarkerTextInput').val('');
+        $('#customCollabMarkerMessage').text('');
+        $('#customCollabMarkerModal').removeClass('hidden').addClass('visible');
     }
 
-    window.closePoiSubmissionModal = function () {
-        document.getElementById('poiSubmissionModal').classList.remove('visible');
-        document.getElementById('poiSubmissionModal').classList.add('hidden');
-        if (tempPoiSubmissionMarker) { window.map.removeLayer(tempPoiSubmissionMarker); tempPoiSubmissionMarker = null; }
-        if (currentMarkerType === 'submitPoi') window.setMarkerType(null);
+    window.closeCustomCollabMarkerModal = function() {
+        $('#customCollabMarkerModal').removeClass('visible').addClass('hidden');
+        if (tempCustomCollabMarkerPlacement) { window.map.removeLayer(tempCustomCollabMarkerPlacement); tempCustomCollabMarkerPlacement = null; }
+        if (currentMarkerType === 'customCollab') window.setMarkerType(null); // Deselect button
     }
 
-    document.getElementById('poiForm').addEventListener('submit', async function(event) {
+    $('#customCollabMarkerForm').on('submit', async function(event) {
         event.preventDefault();
-        const formData = new FormData(this);
-        const msgDiv = document.getElementById('poiSubmissionMessage');
-        msgDiv.textContent = 'Submitting...'; msgDiv.style.color = '#f0f0f0';
-        try {
-            const response = await fetch('submit_poi.php', { method: 'POST', body: formData });
-            const result = await response.json();
-            if (response.ok && result.success) {
-                msgDiv.textContent = 'POI submitted for review! Thank you.'; msgDiv.style.color = 'lightgreen';
-                setTimeout(window.closePoiSubmissionModal, 2500);
-            } else {
-                msgDiv.textContent = `Error: ${result.message || 'Could not submit POI.'}`; msgDiv.style.color = 'salmon';
-            }
-        } catch (error) {
-            console.error('POI Submission error:', error);
-            msgDiv.textContent = 'An error occurred during submission.'; msgDiv.style.color = 'salmon';
+        const lat = $('#customMarkerLat').val();
+        const lng = $('#customMarkerLng').val();
+        const fa_icon_class = $('#customMarkerFaIconInput').val();
+        const marker_color = $('#customMarkerColorInput').val();
+        const marker_text = $('#customMarkerTextInput').val();
+
+        if (!fa_icon_class) {
+            $('#customCollabMarkerMessage').text('Please select an icon.').css('color', 'salmon');
+            return;
         }
+
+        sendCollabData('marker', 'add', {
+            marker_type_name: 'custom_collab', // Specific type for these
+            latitude: lat,
+            longitude: lng,
+            fa_icon_class: fa_icon_class,
+            marker_color: marker_color,
+            marker_text: marker_text
+        });
+        // Message will be cleared by close or next open, or add success message
+        $('#customCollabMarkerMessage').text('Marker sent!').css('color', 'lightgreen');
+        setTimeout(window.closeCustomCollabMarkerModal, 1500);
     });
 
-    // Initialize icon picker for POI Submission Modal
-    if (document.getElementById('poi_submit_icon_picker_button')) {
-        $('#poi_submit_icon_picker_button').iconpicker({
-            iconset: 'fontawesome6', // Make sure this matches your Font Awesome version
-            icon: 'fas fa-map-marker-alt', // Default icon
-            rows: 5,
-            cols: 10,
-            placement: 'bottom' // Or 'top', 'left', 'right'
+    if ($('#custom_marker_icon_picker_button').length) {
+        $('#custom_marker_icon_picker_button').iconpicker({
+            iconset: 'fontawesome6',
+            icon: 'fas fa-map-pin', // Default selected icon
+            rows: 5, cols: 10, placement: 'bottom'
         }).on('change', function(e) {
             if (e.icon) {
-                $('#poiSubmitFaIconInput').val(e.icon);
-                $('#poi_submit_icon_preview').html('<i class="' + e.icon + '"></i>');
-            } else { // If deselected or search yields no result and picker clears
-                $('#poiSubmitFaIconInput').val('');
-                $('#poi_submit_icon_preview').html('');
+                $('#customMarkerFaIconInput').val(e.icon);
+                $('#custom_marker_icon_preview').html(`<i class="${e.icon}" style="color: ${$('#customMarkerColorInput').val()};"></i>`);
+            } else {
+                $('#customMarkerFaIconInput').val('');
+                $('#custom_marker_icon_preview').html('');
+            }
+        });
+        // Update preview color when color input changes
+        $('#customMarkerColorInput').on('input change', function() {
+            const currentIcon = $('#customMarkerFaIconInput').val();
+            if (currentIcon) {
+                $('#custom_marker_icon_preview').html(`<i class="${currentIcon}" style="color: ${$(this).val()};"></i>`);
             }
         });
     }
+    // --- End Custom Collab Marker Modal Logic ---
 
-
-    window.undoLastMarker = function () { 
-        if (userMarkers.length > 0) window.map.removeLayer(userMarkers.pop());
-        else alert('No personal markers to undo.');
-    }
-    window.removeAllMarkers = function () { 
-        userMarkers.forEach(marker => window.map.removeLayer(marker));
-        userMarkers = [];
-    }
-
-    const drawnItems = new L.FeatureGroup().addTo(window.map); 
-    const drawControlOptions = {
-        draw: { polyline: true, polygon: true, rectangle: true, circle: true, marker: false },
-        edit: { featureGroup: drawnItems, remove: true } 
-    };
-    window.map.drawControl = new L.Control.Draw(drawControlOptions);
-
-
-    window.map.on(L.Draw.Event.CREATED, function (event) {
-        const layer = event.layer;
-        const type = event.layerType;
-        if (currentSessionKey) {
-            const geojsonData = layer.toGeoJSON();
-            layer.client_layer_id = layer._leaflet_id; 
-            sendCollabData('drawing', 'add', {
-                layer_type: type,
-                geojson_data: JSON.stringify(geojsonData),
-                client_layer_id: layer.client_layer_id
-            });
-        } else {
-            drawnItems.addLayer(layer); 
-        }
-    });
-
-    window.map.on(L.Draw.Event.EDITED, function (event) {
-        if (!currentSessionKey) {
-            console.log("Personal drawing edited.");
-            return;
-        }
-        event.layers.eachLayer(function (layer) {
-            if (layer.db_id) { 
-                console.log("TODO: Send collaborative drawing update for db_id:", layer.db_id, " New GeoJSON:", JSON.stringify(layer.toGeoJSON()));
-            }
-        });
-    });
-
-    window.map.on(L.Draw.Event.DELETED, function (event) {
-        if (!currentSessionKey) { 
-             console.log("Personal drawing deleted.");
-            return;
-        }
-        event.layers.eachLayer(function (layer) {
-            if (layer.db_id) {
-                if (confirm("Delete this collaborative drawing for everyone?")) {
-                    sendCollabData('drawing', 'delete', { db_item_id: layer.db_id });
-                    if (collabDrawingsLayer.hasLayer(layer)) {
-                        collabDrawingsLayer.removeLayer(layer);
-                    }
-                    renderedCollabItemDBIds.drawings.delete(layer.db_id);
-                }
-            }
-        });
-    });
-
-    window.enableDrawing = function () { window.map.addControl(window.map.drawControl); }
-    window.disableDrawing = function () {
-        if (window.map.drawControl && window.map.pm) { 
-            if (window.map.pm.globalDrawModeEnabled()) window.map.pm.disableDraw();
-            if (window.map.pm.globalEditModeEnabled()) window.map.pm.disableGlobalEditMode();
-        }
-        if (window.map.drawControl) { 
-            for (const type in window.map.drawControl._toolbars.draw._modes) {
-                if (window.map.drawControl._toolbars.draw._modes[type].handler.enabled()) window.map.drawControl._toolbars.draw._modes[type].handler.disable();
-            }
-            for (const type in window.map.drawControl._toolbars.edit._modes) {
-                 if (window.map.drawControl._toolbars.edit._modes[type].handler && window.map.drawControl._toolbars.edit._modes[type].handler.enabled()) window.map.drawControl._toolbars.edit._modes[type].handler.disable();
-            }
-            window.map.removeControl(window.map.drawControl);
-        }
-    }
-    window.clearAllDrawings = function () { drawnItems.clearLayers(); } 
-
-    const compass = document.getElementById('compass');
-    compass.addEventListener('click', () => { rotateMap(90); });
-    let currentAngle = 0; const directions = ['N', 'E', 'S', 'W'];
-    function rotateMap(angle) {
-        currentAngle = (currentAngle + angle) % 360;
-        document.getElementById('map').style.transform = `rotate(${currentAngle}deg)`;
-        const effectiveAngle = (360 - currentAngle) % 360;
-        document.getElementById('currentDirection').textContent = directions[Math.round(effectiveAngle / 90) % 4];
-    }
-
-    const sidebar = document.getElementById('sidebar');
-    const toggleMenuButton = document.getElementById('toggleMenu');
-    toggleMenuButton.addEventListener('click', () => {
-        sidebar.classList.toggle('hidden');
-        adjustMapSize();
-    });
-    function adjustMapSize() { setTimeout(() => window.map.invalidateSize(), 300); }
-
-    window.openAbout = function () { document.getElementById('modal').classList.add('visible'); }
-    window.closeAbout = function () { document.getElementById('modal').classList.remove('visible'); }
-    window.openHelp = function () { document.getElementById('help-modal').classList.add('visible'); }
-    window.closeHelp = function () { document.getElementById('help-modal').classList.remove('visible'); }
+    window.undoLastMarker=function(){if(userMarkers.length>0)window.map.removeLayer(userMarkers.pop());else alert('No personal markers.');}
+    window.removeAllMarkers=function(){userMarkers.forEach(m=>window.map.removeLayer(m));userMarkers=[];}
+    const drawnItems=L.featureGroup().addTo(window.map); const drawControlOptions={draw:{polyline:true,polygon:true,rectangle:true,circle:true,marker:false},edit:{featureGroup:drawnItems,remove:true}};
+    window.map.drawControl=new L.Control.Draw(drawControlOptions);
+    window.map.on(L.Draw.Event.CREATED,function(ev){const l=ev.layer,t=ev.layerType;if(currentSessionKey){const gj=l.toGeoJSON();l.client_layer_id=l._leaflet_id;sendCollabData('drawing','add',{layer_type:t,geojson_data:JSON.stringify(gj),client_layer_id:l.client_layer_id});}else{drawnItems.addLayer(l);}});
+    window.map.on(L.Draw.Event.EDITED,function(ev){if(!currentSessionKey){console.log("Personal drawing edited.");return;}ev.layers.eachLayer(function(l){if(l.db_id){console.log("TODO: Send collab drawing update for db_id:",l.db_id,"New GeoJSON:",JSON.stringify(l.toGeoJSON()));}});});
+    window.map.on(L.Draw.Event.DELETED,function(ev){if(!currentSessionKey){console.log("Personal drawing deleted.");return;}ev.layers.eachLayer(function(l){if(l.db_id&&confirm("Delete collaborative drawing?")){sendCollabData('drawing','delete',{db_item_id:l.db_id});if(collabDrawingsLayer.hasLayer(l))collabDrawingsLayer.removeLayer(l);renderedCollabItemDBIds.drawings.delete(l.db_id);}});});
+    window.enableDrawing=function(){window.map.addControl(window.map.drawControl);}
+    window.disableDrawing=function(){if(window.map.drawControl){for(const t in window.map.drawControl._toolbars.draw._modes)if(window.map.drawControl._toolbars.draw._modes[t].handler.enabled())window.map.drawControl._toolbars.draw._modes[t].handler.disable();for(const t in window.map.drawControl._toolbars.edit._modes)if(window.map.drawControl._toolbars.edit._modes[t].handler&&window.map.drawControl._toolbars.edit._modes[t].handler.enabled())window.map.drawControl._toolbars.edit._modes[t].handler.disable();window.map.removeControl(window.map.drawControl);}}
+    window.clearAllDrawings=function(){drawnItems.clearLayers();}
+    $('#compass').on('click',()=>{rotateMap(90);});let currentAngle=0;const directions=['N','E','S','W'];
+    function rotateMap(a){currentAngle=(currentAngle+a)%360;$('#map').css('transform',`rotate(${currentAngle}deg)`);const ea=(360-currentAngle)%360;$('#currentDirection').text(directions[Math.round(ea/90)%4]);}
+    $('#sidebar, #toggleMenu').on('click',function(e){if(e.target.id==='toggleMenu')$('#sidebar').toggleClass('hidden');if($(e.target).closest('#sidebar').length||e.target.id==='toggleMenu')adjustMapSize();}); // Simplified toggle
+    function adjustMapSize(){setTimeout(()=>window.map.invalidateSize(),300);}
+    window.openAbout=function(){$('#modal').addClass('visible');}
+    window.closeAbout=function(){$('#modal').removeClass('visible');}
+    window.openHelp=function(){$('#help-modal').addClass('visible');}
+    window.closeHelp=function(){$('#help-modal').removeClass('visible');}
     
-    // --- COLLABORATION LOGIC ---
-    initializeMapSelector().then(() => { 
-        const sessionModal = document.getElementById('sessionModal');
-        const createSessBtn = document.getElementById('createSessionButton');
-        const joinSessBtn = document.getElementById('joinSessionButton');
-        const sessKeyInput = document.getElementById('sessionKeyInput');
-        const sessMsg = document.getElementById('sessionMessage');
-        const sessInfoDiv = document.getElementById('sessionInfo');
-        const activeSessKeySpan = document.getElementById('activeSessionKey');
-        const activeSessMapNameSpan = document.getElementById('activeSessionMapName');
-        const shareLinkInput = document.getElementById('shareableLink');
-        const leaveSessBtn = document.getElementById('leaveSessionButton');
-        const sessMapSelector = document.getElementById('sessionMapSelector');
-        const mainMapSelector = document.getElementById('mapSelector');
-        const mapElementRef = document.getElementById('map'); 
-
-        const sessionCreateSection = document.getElementById('sessionCreateSection');
-        const sessionJoinSection = document.getElementById('sessionJoinSection');
-        const sessionModalInstructions = document.getElementById('sessionModalInstructions');
-
-        function updateSessionUI(isActive) {
-            if (isActive) { 
-                sessionModal.classList.remove('visible');
-                sessionModal.classList.add('hidden');
-                mapElementRef.classList.remove('blurred');
-                sessInfoDiv.style.display = 'block'; 
-                sessionCreateSection.style.display = 'none'; 
-                sessionJoinSection.style.display = 'none'; 
-                sessionModalInstructions.style.display = 'none'; 
-                activeSessKeySpan.textContent = currentSessionKey;
-                activeSessMapNameSpan.textContent = currentSessionMapName;
-                const newUrl = `${window.location.protocol}//${window.location.host}${window.location.pathname}?session=${currentSessionKey}`;
-                shareLinkInput.value = newUrl;
-                try { window.history.pushState({path:newUrl},'',newUrl); } catch(e) { console.warn("Could not update URL:", e); }
-                mainMapSelector.disabled = true;
-            } else { 
-                sessionModal.classList.add('visible');
-                sessionModal.classList.remove('hidden');
-                mapElementRef.classList.add('blurred');
-                sessInfoDiv.style.display = 'none'; 
-                sessionCreateSection.style.display = 'block'; 
-                sessionJoinSection.style.display = 'block'; 
-                sessionModalInstructions.style.display = 'block'; 
-                try { window.history.pushState({path: window.location.pathname},'',window.location.pathname); } catch(e) { console.warn("Could not update URL:", e); }
-                mainMapSelector.disabled = false;
-            }
-        }
-        updateSessionUI(false); 
-
-        const urlParams = new URLSearchParams(window.location.search);
-        const sessionKeyFromUrl = urlParams.get('session');
-        if (sessionKeyFromUrl) {
-            sessKeyInput.value = sessionKeyFromUrl; 
-            joinSession(sessionKeyFromUrl); 
-        } else { updateSessionUI(false); }
-
-        createSessBtn.addEventListener('click', async () => {
-            const selectedOpt = sessMapSelector.options[sessMapSelector.selectedIndex];
-            if (!selectedOpt || !selectedOpt.dataset.mapId) { sessMsg.textContent = 'Please select map.'; return; }
-            const mapIdForSess = parseInt(selectedOpt.dataset.mapId);
-            const mapNameForSess = selectedOpt.textContent;
-            sessMsg.textContent = 'Creating...';
-            try {
-                const resp = await fetch('create_session.php', { method: 'POST', headers: {'Content-Type': 'application/x-www-form-urlencoded'}, body: `map_id=${mapIdForSess}` });
-                const data = await resp.json();
-                if (data.success) {
-                    currentSessionKey = data.session_key; currentSessionMapId = data.map_id; currentSessionMapName = mapNameForSess;
-                    updateSessionUI(true); startPolling();
-                    if (currentMapId !== currentSessionMapId) {
-                        for(let i=0; i<mainMapSelector.options.length; i++){ if(parseInt(mainMapSelector.options[i].dataset.mapId) === currentSessionMapId){ mainMapSelector.selectedIndex = i; mainMapSelector.dispatchEvent(new Event('change')); break; } }
-                    }
-                    loadAllCollabItems();
-                } else { sessMsg.textContent = `Error: ${data.message}`; updateSessionUI(false); }
-            } catch (err) { console.error("Create sess err:", err); sessMsg.textContent = 'Network error.'; updateSessionUI(false); }
-        });
-
-        joinSessBtn.addEventListener('click', () => { const key = sessKeyInput.value.trim(); if (key) joinSession(key); else sessMsg.textContent = 'Enter session key.'; });
-
-        async function joinSession(key) {
-            sessMsg.textContent = 'Joining...';
-            try {
-                const resp = await fetch(`join_session.php?session_key=${key}`);
-                const data = await resp.json();
-                if (data.success) {
-                    currentSessionKey = data.session_key; currentSessionMapId = data.map_id;
-                    let mapNameFound = false;
-                    for(let i=0; i<mainMapSelector.options.length; i++){ if(parseInt(mainMapSelector.options[i].dataset.mapId) === currentSessionMapId){ currentSessionMapName = mainMapSelector.options[i].textContent; if (currentMapId !== currentSessionMapId) { mainMapSelector.selectedIndex = i; mainMapSelector.dispatchEvent(new Event('change')); } mapNameFound = true; break; } }
-                    if (!mapNameFound) currentSessionMapName = `Map ID ${currentSessionMapId}`;
-                    updateSessionUI(true); startPolling(); loadAllCollabItems();
-                } else { sessMsg.textContent = `Error: ${data.message}`; updateSessionUI(false); }
-            } catch (err) { console.error("Join sess err:", err); sessMsg.textContent = 'Network error.'; updateSessionUI(false); }
-        }
-
-        leaveSessBtn.addEventListener('click', () => {
-            currentSessionKey = null; currentSessionMapId = null; currentSessionMapName = '';
-            stopPolling(); 
-            collabMarkersLayer.clearLayers(); collabDrawingsLayer.clearLayers();
-            renderedCollabItemDBIds.markers.clear(); renderedCollabItemDBIds.drawings.clear();
-            lastReceivedMarkerId = 0; lastReceivedDrawingId = 0;
-            sessMsg.textContent = 'You have left the session.'; updateSessionUI(false); 
-        });
+    initializeMapSelector().then(()=>{
+        const sm=$('#sessionModal'),csb=$('#createSessionButton'),jsb=$('#joinSessionButton'),ski=$('#sessionKeyInput'),smsg=$('#sessionMessage'),sid=$('#sessionInfo'),ask=$('#activeSessionKey'),asmn=$('#activeSessionMapName'),sli=$('#shareableLink'),lsb=$('#leaveSessionButton'),ssm=$('#sessionMapSelector'),msm=$('#mapSelector'),mer=$('#map'),scs=$('#sessionCreateSection'),sjs=$('#sessionJoinSection'),smi=$('#sessionModalInstructions'),cslb=$('#copyShareLinkButton'),csms=$('#copyStatusMessage'),sDisc=$('#shareToDiscordButton'),sWA=$('#shareToWhatsAppButton');
+        function uSUI(ia){if(ia){sm.removeClass('visible').addClass('hidden');mer.removeClass('blurred');sid.show();scs.hide();sjs.hide();smi.hide();ask.text(currentSessionKey);asmn.text(currentSessionMapName);const nu=`${location.protocol}//${location.host}${location.pathname}?session=${currentSessionKey}`;sli.val(nu);try{history.pushState({path:nu},'',nu);}catch(e){console.warn("URLupd fail:",e);}msm.prop('disabled',true);}else{sm.addClass('visible').removeClass('hidden');mer.addClass('blurred');sid.hide();scs.show();sjs.show();smi.show();try{history.pushState({path:location.pathname},'',location.pathname);}catch(e){console.warn("URLupd fail:",e);}msm.prop('disabled',false);}}
+        uSUI(false);const up=new URLSearchParams(location.search);const skfu=up.get('session');if(skfu){ski.val(skfu);joinSession(skfu);}else{uSUI(false);}
+        csb.on('click',async()=>{const so=ssm.find('option:selected');if(!so.length||!so.data('mapId')){smsg.text('Select map.');return;}const mId=parseInt(so.data('mapId')),mName=so.text();smsg.text('Creating...');try{const r=await fetch('create_session.php',{method:'POST',headers:{'Content-Type':'application/x-www-form-urlencoded'},body:`map_id=${mId}`});const d=await r.json();if(d.success){currentSessionKey=d.session_key;currentSessionMapId=d.map_id;currentSessionMapName=mName;uSUI(true);startPolling();if(currentMapId!==currentSessionMapId)msm.val(msm.find(`option[data-map-id="${currentSessionMapId}"]`).val()).trigger('change');loadAllCollabItems();}else{smsg.text(`Error: ${d.message}`);uSUI(false);}}catch(err){console.error("Create err:",err);smsg.text('Network error.');uSUI(false);}});
+        jsb.on('click',()=>{const k=ski.val().trim();if(k)joinSession(k);else smsg.text('Enter key.');});
+        async function joinSession(k){smsg.text('Joining...');try{const r=await fetch(`join_session.php?session_key=${k}`);const d=await r.json();if(d.success){currentSessionKey=d.session_key;currentSessionMapId=d.map_id;let mnf=false;msm.find('option').each(function(){const $o=$(this);if(parseInt($o.data('mapId'))===currentSessionMapId){currentSessionMapName=$o.text();if(currentMapId!==currentSessionMapId)msm.val($o.val()).trigger('change');mnf=true;return false;}});if(!mnf)currentSessionMapName=`Map ID ${currentSessionMapId}`;uSUI(true);startPolling();loadAllCollabItems();}else{smsg.text(`Error: ${d.message}`);uSUI(false);}}catch(err){console.error("Join err:",err);smsg.text('Network error.');uSUI(false);}}
+        lsb.on('click',()=>{currentSessionKey=null;currentSessionMapId=null;currentSessionMapName='';stopPolling();collabMarkersLayer.clearLayers();collabDrawingsLayer.clearLayers();renderedCollabItemDBIds.markers.clear();renderedCollabItemDBIds.drawings.clear();lastReceivedMarkerId=0;lastReceivedDrawingId=0;smsg.text('Left session.');uSUI(false);});
+        if(cslb.length){cslb.on('click',()=>{sli[0].select();sli[0].setSelectionRange(0,99999);try{const sc=document.execCommand('copy');csms.text(sc?'Link copied!':'Copy failed.').show().delay(2000).fadeOut();}catch(err){csms.text('Copy failed.').show().delay(2000).fadeOut();console.error('Copy err:',err);}});}
+        if(sDisc.length){sDisc.on('click',()=>{if(!currentSessionKey)return;const txt=`Join map session! Link: ${sli.val()}\nKey: ${currentSessionKey}`;alert("Copy link/key for Discord.\n\n"+txt);});}
+        if(sWA.length){sWA.on('click',()=>{if(!currentSessionKey)return;const txt=`Join map session! Link: ${sli.val()}\nKey: ${currentSessionKey}`;const waUrl=`https://wa.me/?text=${encodeURIComponent(txt)}`;window.open(waUrl,'_blank');});}
     }); 
-
-    function startPolling() { if (collabPollingInterval) clearInterval(collabPollingInterval); collabPollingInterval = setInterval(fetchCollabUpdates, POLLING_RATE); console.log("Collab polling started."); }
-    function stopPolling() { if (collabPollingInterval) clearInterval(collabPollingInterval); collabPollingInterval = null; console.log("Collab polling stopped."); }
-
-    async function fetchCollabUpdates() {
-        if (!currentSessionKey) return;
-        try {
-            const resp = await fetch(`get_collab_updates.php?session_key=${currentSessionKey}&client_id=${collabClientId}&last_marker_id=${lastReceivedMarkerId}&last_drawing_id=${lastReceivedDrawingId}`);
-            const data = await resp.json();
-            if (data.success) {
-                if (data.map_id && data.map_id !== currentSessionMapId) { 
-                    console.warn(`Session map ${data.map_id} differs. Aligning...`); currentSessionMapId = data.map_id; let mapFound = false; const mainMapSelector = document.getElementById('mapSelector');
-                    for(let i=0; i<mainMapSelector.options.length; i++){ if(parseInt(mainMapSelector.options[i].dataset.mapId) === currentSessionMapId){ currentSessionMapName = mainMapSelector.options[i].textContent; document.getElementById('activeSessionMapName').textContent = currentSessionMapName; if (currentMapId !== currentSessionMapId) { mainMapSelector.selectedIndex = i; mainMapSelector.dispatchEvent(new Event('change')); } mapFound = true; break; } }
-                    if (!mapFound) console.error("Session map ID from server not found!");
-                    collabMarkersLayer.clearLayers(); collabDrawingsLayer.clearLayers(); renderedCollabItemDBIds.markers.clear(); renderedCollabItemDBIds.drawings.clear(); lastReceivedMarkerId = 0; lastReceivedDrawingId = 0;
-                }
-                data.markers.forEach(mkrData => { renderCollabMarker(mkrData); if (mkrData.id > lastReceivedMarkerId) lastReceivedMarkerId = mkrData.id; });
-                data.drawings.forEach(drwData => { renderCollabDrawing(drwData); if (drwData.id > lastReceivedDrawingId) lastReceivedDrawingId = drwData.id; });
-            } else { console.error("Error fetching updates:", data.message); if (data.message === 'Invalid session.') { alert("Collaboration session is no longer valid."); document.getElementById('leaveSessionButton').click(); } }
-        } catch (err) { console.error("Network error fetching updates:", err); }
-    }
-
-    async function loadAllCollabItems() {
-        if (!currentSessionKey) return; console.log("Loading all collab items for session:", currentSessionKey);
-        lastReceivedMarkerId = 0; lastReceivedDrawingId = 0;
-        collabMarkersLayer.clearLayers(); collabDrawingsLayer.clearLayers();
-        renderedCollabItemDBIds.markers.clear(); renderedCollabItemDBIds.drawings.clear();
-        await fetchCollabUpdates();
-    }
-
-    async function sendCollabData(itemType, action, payload) {
-        if (!currentSessionKey) return; const formData = new FormData(); formData.append('session_key', currentSessionKey); formData.append('client_id', collabClientId); formData.append('item_type', itemType); formData.append('action', action);
-        for (const key in payload) formData.append(key, payload[key]);
-        try {
-            const resp = await fetch('manage_collab_item.php', { method: 'POST', body: formData });
-            const data = await resp.json();
-            if (data.success) console.log(`Collab ${itemType} ${action} success:`, data.message, "DB ID:", data.item_id);
-            else console.error(`Collab ${itemType} ${action} failed:`, data.message);
-        } catch (err) { console.error(`Network error sending collab ${itemType}:`, err); }
-    }
-
-    function renderCollabMarker(markerData) { // This is for tactical markers, not POIs
-        if (renderedCollabItemDBIds.markers.has(markerData.id)) return;
-        if (currentMapId !== currentSessionMapId) { console.log("Skipping collab marker render, map mismatch.", markerData); return; }
-        const icon = customIcons[markerData.marker_type] || customIcons.loot; // Tactical markers use predefined image icons
-        const marker = L.marker([markerData.latitude, markerData.longitude], { icon: icon }).addTo(collabMarkersLayer);
-        marker.db_id = markerData.id; marker.client_id_owner = markerData.client_id;
-        marker.on('click', function(ev) { L.DomEvent.stopPropagation(ev); if (confirm(`Delete collaborative marker? (Owner: ${this.client_id_owner === collabClientId ? "You" : "Other"})`)) { sendCollabData('marker', 'delete', { db_item_id: this.db_id }); collabMarkersLayer.removeLayer(this); renderedCollabItemDBIds.markers.delete(this.db_id); } });
-        renderedCollabItemDBIds.markers.add(markerData.id);
-    }
-    function renderCollabDrawing(drawingData) {
-        if (renderedCollabItemDBIds.drawings.has(drawingData.id)) return;
-         if (currentMapId !== currentSessionMapId) { console.log("Skipping collab drawing render, map mismatch.", drawingData); return; }
-        try {
-            const geoJsonFeat = JSON.parse(drawingData.geojson_data);
-            const layer = L.geoJSON(geoJsonFeat).getLayers()[0];
-            if (layer) {
-                layer.db_id = drawingData.id; layer.client_id_owner = drawingData.client_id; layer.client_layer_id = drawingData.client_layer_id;
-                collabDrawingsLayer.addLayer(layer); renderedCollabItemDBIds.drawings.add(drawingData.id);
-                layer.on('click', function(ev) { L.DomEvent.stopPropagation(ev); if (window.map.drawControl && window.map.drawControl._toolbars.edit && window.map.drawControl._toolbars.edit._activeMode && window.map.drawControl._toolbars.edit._featureGroup.hasLayer(this)) { return; } if (confirm(`Delete collaborative drawing? (Owner: ${this.client_id_owner === collabClientId ? "You" : "Other"})`)) { sendCollabData('drawing', 'delete', { db_item_id: this.db_id }); collabDrawingsLayer.removeLayer(this); renderedCollabItemDBIds.drawings.delete(this.db_id); } });
-            } else console.error("Could not create layer from GeoJSON:", drawingData);
-        } catch (e) { console.error("Error parsing GeoJSON for collab drawing:", e, drawingData.geojson_data); }
-    }
-    // --- END COLLABORATION LOGIC ---
-
-}); // End of DOMContentLoaded
+    function startPolling(){if(collabPollingInterval)clearInterval(collabPollingInterval);collabPollingInterval=setInterval(fetchCollabUpdates,POLLING_RATE);console.log("Polling started.");}
+    function stopPolling(){if(collabPollingInterval)clearInterval(collabPollingInterval);collabPollingInterval=null;console.log("Polling stopped.");}
+    async function fetchCollabUpdates(){if(!currentSessionKey)return;try{const r=await fetch(`get_collab_updates.php?session_key=${currentSessionKey}&client_id=${collabClientId}&last_marker_id=${lastReceivedMarkerId}&last_drawing_id=${lastReceivedDrawingId}`);const d=await r.json();if(d.success){if(d.map_id&&d.map_id!==currentSessionMapId){console.warn(`Sess map ${d.map_id} differs. Align...`);currentSessionMapId=d.map_id;let mf=false;const msm=$('#mapSelector');msm.find('option').each(function(){const $o=$(this);if(parseInt($o.data('mapId'))===currentSessionMapId){currentSessionMapName=$o.text();$('#activeSessionMapName').text(currentSessionMapName);if(currentMapId!==currentSessionMapId)msm.val($o.val()).trigger('change');mf=true;return false;}});if(!mf)console.error("Sess map ID from serv not found!");collabMarkersLayer.clearLayers();collabDrawingsLayer.clearLayers();renderedCollabItemDBIds.markers.clear();renderedCollabItemDBIds.drawings.clear();lastReceivedMarkerId=0;lastReceivedDrawingId=0;}d.markers.forEach(mD=>{renderCollabMarker(mD);if(mD.id>lastReceivedMarkerId)lastReceivedMarkerId=mD.id;});d.drawings.forEach(dD=>{renderCollabDrawing(dD);if(dD.id>lastReceivedDrawingId)lastReceivedDrawingId=dD.id;});}else{console.error("Update fetch error:",d.message);if(d.message==='Invalid session.'){alert("Session invalid.");$('#leaveSessionButton').trigger('click');}}}catch(err){console.error("Net err fetch updates:",err);}}
+    async function loadAllCollabItems(){if(!currentSessionKey)return;console.log("Loading all for session:",currentSessionKey);lastReceivedMarkerId=0;lastReceivedDrawingId=0;collabMarkersLayer.clearLayers();collabDrawingsLayer.clearLayers();renderedCollabItemDBIds.markers.clear();renderedCollabItemDBIds.drawings.clear();await fetchCollabUpdates();}
+    async function sendCollabData(iT,act,pay){if(!currentSessionKey)return;const fd=new FormData();fd.append('session_key',currentSessionKey);fd.append('client_id',collabClientId);fd.append('item_type',iT);fd.append('action',act);for(const k in pay)fd.append(k,pay[k]);try{const r=await fetch('manage_collab_item.php',{method:'POST',body:fd});const d=await r.json();if(d.success)console.log(`Collab ${iT} ${act} ok:`,d.message,d.item_id);else console.error(`Collab ${iT} ${act} fail:`,d.message);}catch(err){console.error(`Net err send ${iT}:`,err);}}
+    function renderCollabMarker(mD){if(renderedCollabItemDBIds.markers.has(mD.id)||currentMapId!==currentSessionMapId)return;let iconToUse;if(mD.marker_type==='custom_collab'&&mD.fa_icon_class){iconToUse=L.divIcon({html:`<i class="${mD.fa_icon_class}" style="font-size:24px; color:${mD.marker_color||'#FFF'}; line-height:1;"></i>`,className:'fontawesome-map-marker',iconSize:[24,24],iconAnchor:[12,12],popupAnchor:[0,-12]});}else{iconToUse=customIcons[mD.marker_type]||customIcons.loot;}const m=L.marker([mD.latitude,mD.longitude],{icon:iconToUse}).addTo(collabMarkersLayer);m.db_id=mD.id;m.client_id_owner=mD.client_id;if(mD.marker_text){m.bindTooltip(mD.marker_text,{permanent:false,direction:'top',className:'custom-collab-marker-tooltip',offset:[0,-12]});}m.on('click',function(e){L.DomEvent.stopPropagation(e);if(confirm(`Del collab marker? (Owner: ${this.client_id_owner===collabClientId?"You":"Other"})`)){sendCollabData('marker','delete',{db_item_id:this.db_id});collabMarkersLayer.removeLayer(this);renderedCollabItemDBIds.markers.delete(this.db_id);}});renderedCollabItemDBIds.markers.add(mD.id);}
+    function renderCollabDrawing(dD){if(renderedCollabItemDBIds.drawings.has(dD.id)||currentMapId!==currentSessionMapId)return;try{const gJF=JSON.parse(dD.geojson_data);const l=L.geoJSON(gJF).getLayers()[0];if(l){l.db_id=dD.id;l.client_id_owner=dD.client_id;l.client_layer_id=dD.client_layer_id;collabDrawingsLayer.addLayer(l);renderedCollabItemDBIds.drawings.add(dD.id);l.on('click',function(e){L.DomEvent.stopPropagation(e);if(window.map.drawControl&&window.map.drawControl._toolbars.edit&&window.map.drawControl._toolbars.edit._activeMode&&window.map.drawControl._toolbars.edit._featureGroup.hasLayer(this))return;if(confirm(`Del collab drawing? (Owner: ${this.client_id_owner===collabClientId?"You":"Other"})`)){sendCollabData('drawing','delete',{db_item_id:this.db_id});collabDrawingsLayer.removeLayer(this);renderedCollabItemDBIds.drawings.delete(this.db_id);}}); }else console.error("Could not create layer from GeoJSON:",dD);}catch(e){console.error("Err parsing GeoJSON for collab drawing:",e,dD.geojson_data);}}
+});
